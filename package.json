@@ -1,0 +1,20 @@
+{
+  "name": "photo-wall-editor",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "three": "^0.186.0"
+  },
+  "devDependencies": {
+    "vite": "^8.3.0"
+  }
+}
