@@ -34,7 +34,7 @@ const RATIO_MAX=100;
 let currentLanguage='zh';
 const state = {
   mode: 'ring', fixedEdge: 'left', imageDirection: 'up', width: 1920, height: 1080, cardWidth: DEFAULT_CARD_WIDTH, cardHeight: DEFAULT_CARD_HEIGHT, count: 12, ringCount: 12, rows: 3, columns: 10, radius: 4.2, spacing: 36, rowGap: 28, columnGap: 28, stagger: 50, curveBend: -120, corner: 20, contentRotation: 0, backBrightness: 30, wallTilt: DEFAULT_WALL_TILT, tilt: 0, rotation: 50, fov: 18, viewOffsetX: 0, viewOffsetY: 0,
-  selected: 0, zoom: 130, photos: [], projectId: null, projectName: '默认项目', resolutionPreset: DEFAULT_RESOLUTION_PRESET, ratioWidth: 16, ratioHeight: 9, staggerDirection: 'horizontal', tiltAxis: 'x', tiltX: 0, tiltY: 0, tiltZ: 0, cameraAxis: 'x', gridStagger: 0, gridStaggerDirection: 'horizontal', gridTiltZ: 0, photoOpacity: 100, decorativeWallEnabled: true, decorativeWallOpacity: 30, decorativeWallProgress: 0,
+  selected: 0, zoom: 130, photos: [], projectId: null, projectName: '默认项目', resolutionPreset: DEFAULT_RESOLUTION_PRESET, ratioWidth: 16, ratioHeight: 9, staggerDirection: 'horizontal', tiltAxis: 'x', tiltX: DEFAULT_WALL_TILT, tiltY: 0, tiltZ: 0, cameraAxis: 'x', gridStagger: 0, gridStaggerDirection: 'horizontal', gridTiltZ: 0, photoOpacity: 100, decorativeWallEnabled: true, decorativeWallOpacity: 30, decorativeWallProgress: 0,
 };
 
 const CURVED_MODES = ['curved','curvedHorizontal','single'];
@@ -50,6 +50,7 @@ const MODE_SETTING_KEYS = ['cardWidth','cardHeight','ringCount','rows','columns'
 const MODE_SETTINGS_VERSION=36;
 const ISOMETRIC_DEFAULTS_VERSION=16;
 const BLOOM_DEFAULTS_VERSION=3;
+const RING_DEFAULTS_VERSION=1;
 function createModeSettings(mode){
   if(isIsometricMode(mode))return {
     isometricDefaultsVersion:ISOMETRIC_DEFAULTS_VERSION,cardWidth:240,cardHeight:240,
@@ -113,6 +114,7 @@ function createModeSettings(mode){
     corner:20,contentRotation:0,imageDirection:'up',backBrightness:30,photoOpacity:100,wallTilt:16,tiltAxis:'y',tiltX:20,tiltY:16,tiltZ:0,tilt:17,rotation:50,cameraAxis:'x',fov:0,zoom:130,viewOffsetX:0,viewOffsetY:0,cameraTarget:[0,0,0],
   };
   const settings={
+    ringDefaultsVersion:RING_DEFAULTS_VERSION,
     cardWidth:DEFAULT_CARD_WIDTH,cardHeight:DEFAULT_CARD_HEIGHT,
     ringCount:12,rows:3,columns:10,radius:4.2,spacing:36,rowGap:28,columnGap:28,spacingMode:'all',stagger:50,staggerDirection:'horizontal',curveBend:-120,
     corner:20,contentRotation:0,imageDirection:'up',backBrightness:30,photoOpacity:100,wallTilt:DEFAULT_WALL_TILT,tiltAxis:'x',tiltX:DEFAULT_WALL_TILT,tiltY:0,tiltZ:0,tilt:0,rotation:50,cameraAxis:'x',fov:18,zoom:130,viewOffsetX:0,viewOffsetY:0,spacingMode:'all',cameraTarget:[0,0,0],
@@ -1649,6 +1651,18 @@ function applyProjectSettings(settings){
     if(!Object.prototype.hasOwnProperty.call(savedSettings,'tiltZ'))merged.tiltZ=0;
     modeSettings[mode]=merged;
   });
+  // Early projects were created from the top-level state before the ring's
+  // X tilt memory was initialized. They therefore stored wallTilt=-55 while
+  // tiltX remained 0, which made the first view differ from Reset. Repair
+  // only that recognizable legacy combination and leave user adjustments
+  // intact once the version marker is present.
+  const savedRing=source.modeSettings?.ring||{};
+  if(savedRing.ringDefaultsVersion!==RING_DEFAULTS_VERSION &&
+    Number(savedRing.wallTilt)===DEFAULT_WALL_TILT &&
+    Number(savedRing.tiltX)===0 && savedRing.tiltAxis==='x' && Number(savedRing.tilt)===0){
+    modeSettings.ring.tiltX=DEFAULT_WALL_TILT;
+  }
+  modeSettings.ring.ringDefaultsVersion=RING_DEFAULTS_VERSION;
   // Projects created before the stagger control existed should retain the
   // original half-step look instead of inheriting an undefined or migrated value.
   if(source.modeSettingsVersion!==MODE_SETTINGS_VERSION){modeSettings.curved.stagger=50;modeSettings.curvedHorizontal.stagger=50}
