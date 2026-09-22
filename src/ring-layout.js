@@ -62,30 +62,41 @@ export function bloomCardPose(index, count, radius, gap=0, phase=0, cardWidth=CA
 // axis keeps the original layout: columns follow a horizontal arc and every
 // other row is shifted by half a card step. The vertical axis variant turns
 // that same arc through Y, so the top and bottom rows are the fixed ends.
-export function curvedCardPose(index, rows, columns, columnGap=0, rowGap=0, bend=72, cardWidth=CARD_WIDTH, cardHeight=CARD_HEIGHT, stagger=0.5, axis='horizontal', staggerDirection='horizontal') {
+export function curvedCardPose(index, rows, columns, columnGap=0, rowGap=0, bend=72, cardWidth=CARD_WIDTH, cardHeight=CARD_HEIGHT, stagger=0.5, axis='horizontal', staggerDirection='horizontal', fixedEdge='center') {
   const row = Math.floor(index / columns);
   const column = index % columns;
   const horizontal = axis !== 'vertical';
   const step = horizontal ? cardWidth + columnGap : cardHeight + rowGap;
   // Stagger is expressed as a fraction of one card step. It shifts adjacent
   // rows for the horizontal arc and adjacent columns for the vertical arc.
-  const staggerOffset = THREE.MathUtils.clamp(stagger, 0, 1);
+  // Keep the maximum stagger at half a card step. The UI value remains a
+  // 0–100% control, while 100% means half-card offset rather than a full gap.
+  const staggerOffset = THREE.MathUtils.clamp(stagger, 0, 1) * 0.5;
   const horizontalStagger = staggerDirection !== 'vertical';
+  const anchored = fixedEdge && fixedEdge !== 'center';
+  const edgeInset = horizontal ? cardWidth / (2 * step) : cardHeight / (2 * step);
+  const anchoredArcStagger = anchored
+    ? (horizontal
+      ? (horizontalStagger && row % 2 ? staggerOffset : 0)
+      : (!horizontalStagger && column % 2 ? staggerOffset : 0))
+    : 0;
   const offset = horizontal
-    ? column - (columns - 1) / 2 + (horizontalStagger && row % 2 ? staggerOffset : 0)
-    : row - (rows - 1) / 2;
+    ? (anchored ? (fixedEdge === 'right' ? column - (columns - 1) - edgeInset : column + edgeInset) : column - (columns - 1) / 2) + (anchoredArcStagger || (!anchored && horizontalStagger && row % 2 ? staggerOffset : 0))
+    : (anchored ? (fixedEdge === 'top' ? row + edgeInset : row - (rows - 1) - edgeInset) : row - (rows - 1) / 2) + anchoredArcStagger;
   const verticalStaggerOffset = !horizontalStagger && column % 2 ? staggerOffset : 0;
   const columnStep = cardWidth + columnGap;
-  const bendRadians = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(bend, -180, 180));
+  const bendRadians = THREE.MathUtils.degToRad(THREE.MathUtils.clamp(bend, -360, 360));
   let position;
   let tangent;
   let normal;
   let verticalTangent;
+  let angleStep=0;
+  let rowAngleStep=0;
   const arcCount = horizontal ? columns : rows;
   if (Math.abs(bendRadians) < 1e-4 || arcCount < 2) {
     position = horizontal
-      ? new THREE.Vector3(offset * step, ((rows - 1) / 2 - row + verticalStaggerOffset) * (cardHeight + rowGap), 0)
-      : new THREE.Vector3((column - (columns - 1) / 2) * columnStep, -offset * step + verticalStaggerOffset * (cardHeight + rowGap), 0);
+        ? new THREE.Vector3(offset * step, ((rows - 1) / 2 - row) * (cardHeight + rowGap) + verticalStaggerOffset * (cardHeight + rowGap), 0)
+      : new THREE.Vector3((column - (columns - 1) / 2) * columnStep + (horizontalStagger && row % 2 ? staggerOffset * columnStep : 0), -offset * step + (!anchored && verticalStaggerOffset ? verticalStaggerOffset * (cardHeight + rowGap) : 0), 0);
     tangent = new THREE.Vector3(1, 0, 0);
     verticalTangent = new THREE.Vector3(0, 1, 0);
     normal = new THREE.Vector3(0, 0, 1);
@@ -93,13 +104,13 @@ export function curvedCardPose(index, rows, columns, columnGap=0, rowGap=0, bend
     // Keep the arc length between neighboring cards constant. The sign only
     // controls which side of the wall bends toward the camera.
     const bendSign = Math.sign(bendRadians);
-    const angleStep = Math.abs(bendRadians) / Math.max(1, arcCount - 1);
+    angleStep = Math.abs(bendRadians) / Math.max(1, arcCount - 1);
     const radius = step / angleStep;
     const angle = offset * angleStep;
     if (horizontal) {
       position = new THREE.Vector3(
         radius * Math.sin(angle),
-        ((rows - 1) / 2 - row) * (cardHeight + rowGap),
+        ((rows - 1) / 2 - row) * (cardHeight + rowGap) + verticalStaggerOffset * (cardHeight + rowGap),
         -bendSign * radius * (1 - Math.cos(angle)),
       );
       tangent = new THREE.Vector3(Math.cos(angle), 0, -bendSign * Math.sin(angle)).normalize();
@@ -109,13 +120,13 @@ export function curvedCardPose(index, rows, columns, columnGap=0, rowGap=0, bend
       // continuous vertical arc, while columns stay on straight, even X
       // intervals so the front view keeps a calm, regular rhythm.
       const rowBendRadians = bendRadians * 0.6;
-      const rowAngleStep = Math.abs(rowBendRadians) / Math.max(1, rows - 1);
+      rowAngleStep = Math.abs(rowBendRadians) / Math.max(1, rows - 1);
       const rowRadius = step / rowAngleStep;
       const rowAngle = offset * rowAngleStep;
       const rawColumnOffset = column - (columns - 1) / 2 + (horizontalStagger && row % 2 ? staggerOffset : 0);
       position = new THREE.Vector3(
         rawColumnOffset * columnStep,
-        -rowRadius * Math.sin(rowAngle) + verticalStaggerOffset * (cardHeight + rowGap),
+        -rowRadius * Math.sin(rowAngle) + (!anchored && verticalStaggerOffset ? verticalStaggerOffset * (cardHeight + rowGap) : 0),
         -bendSign * rowRadius * (1 - Math.cos(rowAngle)),
       );
       const tangentX = new THREE.Vector3(1, 0, 0);

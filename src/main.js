@@ -9,11 +9,13 @@ const WORLD_X_AXIS = new THREE.Vector3(1,0,0);
 const WORLD_Y_AXIS = new THREE.Vector3(0,1,0);
 const WORLD_Z_AXIS = new THREE.Vector3(0,0,1);
 const worldTiltQuaternion=new THREE.Quaternion();
+const IMAGE_DIRECTION_ANGLES={up:0,right:Math.PI/2,down:Math.PI,left:-Math.PI/2};
+function imageDirectionAngle(direction){return IMAGE_DIRECTION_ANGLES[direction]??0}
 // Keep the default model heading neutral. Any horizontal viewing offset is
 // controlled explicitly by the camera's "观察方位" value or canvas drag.
 const WALL_ROTATION = 0;
 const RESET_ICON_PATH = 'M632 14.464a32 32 0 0 1 43.328 13.12l26.368 49.28c7.872 14.72 15.04 28.096 19.264 38.656 2.24 5.44 4.672 12.544 5.376 20.16a40.96 40.96 0 0 1-8.896 30.336 41.216 41.216 0 0 1-28.672 14.4 77.76 77.76 0 0 1-21.056-1.536 515.008 515.008 0 0 1-44.416-11.904L621.632 166.4A384.64 384.64 0 0 0 512 150.656C304.896 150.656 138.688 313.344 138.688 512a350.72 350.72 0 0 0 49.664 180.288 32 32 0 1 1-54.976 32.768 414.72 414.72 0 0 1-58.688-213.12C74.688 276.224 271.36 86.72 512 86.72a448.704 448.704 0 0 1 133.056 20.032l-0.64-1.28L618.88 57.792a32 32 0 0 1 13.12-43.264z m214.72 273.344a32 32 0 0 1 43.84 11.136A414.72 414.72 0 0 1 949.312 512c0 235.776-196.672 425.344-437.312 425.344-44.416 0-87.36-6.464-127.872-18.496l-5.184-1.536 0.64 1.28 25.536 47.616a32 32 0 1 1-56.448 30.208l-26.368-49.28c-7.872-14.72-15.04-28.16-19.328-38.656a72.384 72.384 0 0 1-5.312-20.16 41.024 41.024 0 0 1 8.896-30.336 41.216 41.216 0 0 1 28.672-14.464c7.552-0.64 15.04 0.384 21.056 1.536 11.712 2.24 27.072 6.784 44.416 11.968l1.664 0.512c34.56 10.24 71.424 15.808 109.632 15.808 207.104 0 373.312-162.688 373.312-361.344a350.72 350.72 0 0 0-49.664-180.288 32 32 0 0 1 11.072-43.904z';
-const TILT_GIZMO_ICON_PATH = 'M512 121.1392a42.8032 42.8032 0 0 1 31.744 14.1824l165.2224 183.7056a42.752 42.752 0 0 1-63.5392 57.1904l-90.7264-100.9664v187.2384l408.9344 192.3072a42.752 42.752 0 0 1 0 77.312l-433.408 203.776a42.752 42.752 0 0 1-36.4544 0l-433.408-203.776a42.7008 42.7008 0 0 1 0-77.312l408.9344-192.3072V275.2512L378.5728 376.2176a42.8032 42.8032 0 0 1-66.2016-53.9648l2.6624-3.2768L480.256 135.3216l3.1744-3.1744a42.7008 42.7008 0 0 1 21.76-10.24v-0.768H512zM178.8928 693.4528L512 850.0224l333.056-156.5696-290.304-136.6016v129.1264a42.752 42.752 0 0 1-85.504 0v-129.1264l-290.304 136.6016z';
+const TILT_GIZMO_ICON_PATH = 'M92,157.93a7.34,7.34,0,0,1-3.13-.7L4.23,117.42a7.33,7.33,0,0,1,0-13.28L84.67,66.31V26.49L65.21,48.15a7.36,7.36,0,0,1-11.37-9.29l.48-.59L86.55,2.44l.59-.58A7.26,7.26,0,0,1,90.83.14L91.68,0H92a7.34,7.34,0,0,1,5.46,2.44l32.27,35.88a7.35,7.35,0,0,1-10.94,9.82L99.35,26.49V66.31l80.44,37.83a7.35,7.35,0,0,1,0,13.29l-84.65,39.8A7.34,7.34,0,0,1,92,157.93ZM26.52,111.69,92,142.46l67.4-31.68-60-28.26v26.8a7.35,7.35,0,0,1-14.7,0V82.52L26.54,109.88l.42-.1Z';
 const EFFECT_RESET_ICON_PATH = 'M958.72 225.856l-82.688 211.136-13.76 35.2c-3.776 9.728-14.784 14.528-24.512 10.688l-35.2-13.76L591.36 386.368C581.632 382.528 576.832 371.584 580.672 361.856l13.76-35.2c3.776-9.728 14.784-14.528 24.512-10.688l174.912 68.544c-50.56-124.416-171.584-212.672-314.112-212.672-187.84 0-340.16 152.32-340.16 340.16s152.256 340.16 340.16 340.16c148.032 0 273.6-94.72 320.384-226.752l79.296 0c-49.408 174.4-209.408 302.336-399.68 302.336C250.112 927.744 64 741.632 64 512s186.112-415.744 415.744-415.744c157.056 0 293.376 87.296 363.968 215.872l44.608-113.856c3.776-9.728 14.784-14.528 24.512-10.688l35.2 13.76C957.696 205.184 962.496 216.128 958.72 225.856z';
 const PREVIEW_QUALITY_KEY = 'photo-wall-preview-quality-v1';
 // Standard keeps uploaded images light enough for smooth dragging while
@@ -25,36 +27,73 @@ const ratios = [
   ['16:9', 1920, 1080], ['4:3', 1440, 1080], ['1:1', 1080, 1080],
   ['4:5', 1080, 1350], ['3:4', 1080, 1440], ['9:16', 1080, 1920],
 ];
-const RESOLUTION_PRESETS={'1K':1024,'2K':1920,'4K':3840};
+const RESOLUTION_PRESETS={'1K':1024,'2K':1920,'4K':3840,'8K':7680};
 const DEFAULT_RESOLUTION_PRESET='2K';
 const RATIO_MIN=1;
 const RATIO_MAX=100;
+let currentLanguage='zh';
 const state = {
-  mode: 'ring', width: 1920, height: 1080, cardWidth: DEFAULT_CARD_WIDTH, cardHeight: DEFAULT_CARD_HEIGHT, count: 12, ringCount: 12, rows: 3, columns: 10, radius: 4.2, spacing: 36, rowGap: 28, columnGap: 28, stagger: 50, curveBend: -120, corner: 20, contentRotation: 0, backBrightness: 30, wallTilt: DEFAULT_WALL_TILT, tilt: 0, rotation: 50, fov: 18, viewOffsetX: 0, viewOffsetY: 0,
-  selected: 0, zoom: 130, photos: [], projectId: null, projectName: '默认项目', resolutionPreset: DEFAULT_RESOLUTION_PRESET, ratioWidth: 16, ratioHeight: 9, staggerDirection: 'horizontal', tiltAxis: 'x', tiltX: 0, tiltY: 0, tiltZ: 0, cameraAxis: 'x', gridStagger: 0, gridStaggerDirection: 'horizontal', gridTiltZ: 0, photoOpacity: 100,
+  mode: 'ring', fixedEdge: 'left', imageDirection: 'up', width: 1920, height: 1080, cardWidth: DEFAULT_CARD_WIDTH, cardHeight: DEFAULT_CARD_HEIGHT, count: 12, ringCount: 12, rows: 3, columns: 10, radius: 4.2, spacing: 36, rowGap: 28, columnGap: 28, stagger: 50, curveBend: -120, corner: 20, contentRotation: 0, backBrightness: 30, wallTilt: DEFAULT_WALL_TILT, tilt: 0, rotation: 50, fov: 18, viewOffsetX: 0, viewOffsetY: 0,
+  selected: 0, zoom: 130, photos: [], projectId: null, projectName: '默认项目', resolutionPreset: DEFAULT_RESOLUTION_PRESET, ratioWidth: 16, ratioHeight: 9, staggerDirection: 'horizontal', tiltAxis: 'x', tiltX: 0, tiltY: 0, tiltZ: 0, cameraAxis: 'x', gridStagger: 0, gridStaggerDirection: 'horizontal', gridTiltZ: 0, photoOpacity: 100, decorativeWallEnabled: true, decorativeWallOpacity: 30, decorativeWallProgress: 0,
 };
 
-const CURVED_MODES = ['curved','curvedHorizontal'];
+const CURVED_MODES = ['curved','curvedHorizontal','single'];
 const RING_MODES = ['ring','bloom'];
-const PHOTO_MODES = ['ring','bloom','curved','curvedHorizontal','grid'];
-const DEFAULT_PHOTO_COUNTS = {ring:12,bloom:12,curved:24,curvedHorizontal:24,grid:24};
-const PHOTO_SETS_VERSION = 4;
+const PHOTO_MODES = ['ring','bloom','curved','curvedHorizontal','single','grid','isometric'];
+const DEFAULT_PHOTO_COUNTS = {ring:12,bloom:12,curved:24,curvedHorizontal:24,single:28,grid:24,isometric:24};
+const PHOTO_SETS_VERSION = 6;
 const isCurvedMode = (mode=state.mode) => CURVED_MODES.includes(mode);
-const isGridMode = (mode=state.mode) => mode==='grid';
+const isIsometricMode = (mode=state.mode) => mode==='isometric';
+const isGridMode = (mode=state.mode) => mode==='grid'||isIsometricMode(mode);
 const isRingMode = (mode=state.mode) => RING_MODES.includes(mode);
-const MODE_SETTING_KEYS = ['ringCount','rows','columns','radius','spacing','rowGap','columnGap','spacingMode','stagger','staggerDirection','curveBend','corner','contentRotation','backBrightness','photoOpacity','wallTilt','tiltAxis','tiltX','tiltY','tiltZ','tilt','rotation','cameraAxis','fov','zoom','viewOffsetX','viewOffsetY','gridStagger','gridStaggerDirection','gridTiltZ'];
-const MODE_SETTINGS_VERSION=24;
+const MODE_SETTING_KEYS = ['cardWidth','cardHeight','ringCount','rows','columns','radius','spacing','rowGap','columnGap','spacingMode','stagger','staggerDirection','curveBend','corner','contentRotation','imageDirection','backBrightness','photoOpacity','decorativeWallEnabled','decorativeWallOpacity','decorativeWallProgress','wallTilt','tiltAxis','tiltX','tiltY','tiltZ','tilt','rotation','cameraAxis','fov','zoom','viewOffsetX','viewOffsetY','gridStagger','gridStaggerDirection','gridTiltZ','fixedEdge'];
+const MODE_SETTINGS_VERSION=36;
+const ISOMETRIC_DEFAULTS_VERSION=16;
+const BLOOM_DEFAULTS_VERSION=3;
 function createModeSettings(mode){
+  if(isIsometricMode(mode))return {
+    isometricDefaultsVersion:ISOMETRIC_DEFAULTS_VERSION,cardWidth:240,cardHeight:240,
+    ringCount:24,rows:5,columns:5,radius:4.2,spacing:36,rowGap:39,columnGap:39,spacingMode:'all',stagger:0,staggerDirection:'horizontal',curveBend:0,
+    gridStagger:0,gridStaggerDirection:'horizontal',gridTiltZ:45,
+    corner:31,contentRotation:0,imageDirection:'up',backBrightness:30,photoOpacity:100,wallTilt:45,tiltAxis:'z',tiltX:0,tiltY:0,tiltZ:45,tilt:45,rotation:0,cameraAxis:'x',fov:38,zoom:220,viewOffsetX:0,viewOffsetY:0,cameraTarget:[0,0,0],
+  };
   if(isGridMode(mode))return {
+    cardWidth:DEFAULT_CARD_WIDTH,cardHeight:DEFAULT_CARD_HEIGHT,
     ringCount:24,rows:4,columns:6,radius:4.2,spacing:36,rowGap:39,columnGap:39,spacingMode:'all',stagger:0,staggerDirection:'horizontal',curveBend:0,
     gridStagger:50,gridStaggerDirection:'vertical',gridTiltZ:20,
-    corner:31,contentRotation:0,backBrightness:30,photoOpacity:100,wallTilt:20,tiltAxis:'z',tiltX:0,tiltY:0,tiltZ:20,tilt:0,rotation:0,cameraAxis:'x',fov:38,zoom:290,viewOffsetX:0,viewOffsetY:0,cameraTarget:[0,0,0],
+    corner:31,contentRotation:0,imageDirection:'up',backBrightness:30,photoOpacity:100,wallTilt:20,tiltAxis:'z',tiltX:0,tiltY:0,tiltZ:20,tilt:0,rotation:0,cameraAxis:'x',fov:38,zoom:290,viewOffsetX:0,viewOffsetY:0,cameraTarget:[0,0,0],
   };
   if(isCurvedMode(mode)){
     const settings={
+    cardWidth:DEFAULT_CARD_WIDTH,cardHeight:DEFAULT_CARD_HEIGHT,
     ringCount:12,rows:3,columns:10,radius:4.2,spacing:36,rowGap:28,columnGap:28,spacingMode:'all',stagger:50,staggerDirection:'horizontal',curveBend:-120,
-    corner:20,contentRotation:0,backBrightness:30,photoOpacity:100,wallTilt:0,tiltAxis:'x',tiltX:0,tiltY:0,tiltZ:0,tilt:0,rotation:0,cameraAxis:'x',fov:38,zoom:100,viewOffsetX:0,viewOffsetY:0,cameraTarget:[0,0,0],
+    corner:20,contentRotation:0,imageDirection:'up',backBrightness:30,photoOpacity:100,wallTilt:0,tiltAxis:'x',tiltX:0,tiltY:0,tiltZ:0,tilt:0,rotation:0,cameraAxis:'x',fov:38,zoom:100,viewOffsetX:0,viewOffsetY:0,cameraTarget:[0,0,0],
     };
+    if(mode==='single'){
+      settings.singleDefaultsVersion=6;
+      settings.imageDirection='left';
+      settings.decorativeWallEnabled=true;
+      settings.decorativeWallOpacity=30;
+      settings.decorativeWallProgress=0;
+      settings.fixedEdge='left';
+      settings.rows=4;
+      settings.columns=7;
+      settings.stagger=0;
+      settings.curveBend=-65;
+      settings.corner=26;
+      settings.backBrightness=39;
+      settings.wallTilt=-90;
+      settings.tiltAxis='x';
+      settings.tiltX=-90;
+      settings.rotation=-45;
+      settings.cameraAxis='x';
+      settings.fov=0;
+      settings.zoom=140;
+      settings.tilt=30;
+      settings.viewOffsetX=496;
+      settings.viewOffsetY=18;
+      settings.cameraTarget=[4.96,.18,0];
+    }
     if(mode==='curvedHorizontal'){
       // Match the requested default: three rows of eight cards with the
       // same spacing, stagger and camera framing as the reference panel.
@@ -68,16 +107,19 @@ function createModeSettings(mode){
     return settings;
   }
   if(mode==='bloom')return {
+    bloomDefaultsVersion:BLOOM_DEFAULTS_VERSION,
+    cardWidth:DEFAULT_CARD_WIDTH,cardHeight:DEFAULT_CARD_HEIGHT,
     ringCount:12,rows:3,columns:10,radius:3,spacing:0,rowGap:28,columnGap:28,spacingMode:'all',stagger:0,staggerDirection:'horizontal',curveBend:0,
-    corner:20,contentRotation:0,backBrightness:30,photoOpacity:100,wallTilt:16,tiltAxis:'y',tiltX:20,tiltY:16,tiltZ:0,tilt:17,rotation:50,cameraAxis:'x',fov:38,zoom:130,viewOffsetX:0,viewOffsetY:-62,cameraTarget:[0,-0.62,0],
+    corner:20,contentRotation:0,imageDirection:'up',backBrightness:30,photoOpacity:100,wallTilt:16,tiltAxis:'y',tiltX:20,tiltY:16,tiltZ:0,tilt:17,rotation:50,cameraAxis:'x',fov:0,zoom:130,viewOffsetX:0,viewOffsetY:0,cameraTarget:[0,0,0],
   };
   const settings={
+    cardWidth:DEFAULT_CARD_WIDTH,cardHeight:DEFAULT_CARD_HEIGHT,
     ringCount:12,rows:3,columns:10,radius:4.2,spacing:36,rowGap:28,columnGap:28,spacingMode:'all',stagger:50,staggerDirection:'horizontal',curveBend:-120,
-    corner:20,contentRotation:0,backBrightness:30,photoOpacity:100,wallTilt:DEFAULT_WALL_TILT,tiltAxis:'x',tiltX:DEFAULT_WALL_TILT,tiltY:0,tiltZ:0,tilt:0,rotation:50,cameraAxis:'x',fov:18,zoom:130,viewOffsetX:0,viewOffsetY:0,spacingMode:'all',cameraTarget:[0,0,0],
+    corner:20,contentRotation:0,imageDirection:'up',backBrightness:30,photoOpacity:100,wallTilt:DEFAULT_WALL_TILT,tiltAxis:'x',tiltX:DEFAULT_WALL_TILT,tiltY:0,tiltZ:0,tilt:0,rotation:50,cameraAxis:'x',fov:18,zoom:130,viewOffsetX:0,viewOffsetY:0,spacingMode:'all',cameraTarget:[0,0,0],
   };
   return settings;
 }
-const modeSettings={ring:createModeSettings('ring'),bloom:createModeSettings('bloom'),curved:createModeSettings('curved'),curvedHorizontal:createModeSettings('curvedHorizontal'),grid:createModeSettings('grid')};
+const modeSettings={ring:createModeSettings('ring'),bloom:createModeSettings('bloom'),curved:createModeSettings('curved'),curvedHorizontal:createModeSettings('curvedHorizontal'),single:createModeSettings('single'),grid:createModeSettings('grid'),isometric:createModeSettings('isometric')};
 
 function samplePhoto(index) {
   return `/photos/sample-${String(index % 12 + 1).padStart(2,'0')}.jpg`;
@@ -88,7 +130,9 @@ state.photosByMode = {
   bloom:sampleProjectPhotos(DEFAULT_PHOTO_COUNTS.bloom),
   curved:sampleProjectPhotos(DEFAULT_PHOTO_COUNTS.curved),
   curvedHorizontal:sampleProjectPhotos(DEFAULT_PHOTO_COUNTS.curvedHorizontal),
+  single:sampleProjectPhotos(DEFAULT_PHOTO_COUNTS.single),
   grid:sampleProjectPhotos(DEFAULT_PHOTO_COUNTS.grid),
+  isometric:sampleProjectPhotos(DEFAULT_PHOTO_COUNTS.isometric),
 };
 
 function saveActivePhotoSet(mode=state.mode){
@@ -98,6 +142,10 @@ function loadPhotoSet(mode, fallbackCount=DEFAULT_PHOTO_COUNTS[mode]||12){
   const existing=Array.isArray(state.photosByMode?.[mode])?state.photosByMode[mode]:[];
   const count=Math.max(3,Math.min(72,existing.length||fallbackCount||12));
   state.photos=existing.length?existing:sampleProjectPhotos(count);
+  // The isometric sample cards need a small upward image framing correction
+  // so their built-in captions stay inside the card. Keep the editor value at
+  // 0% while applying the same visual offset internally for this effect only.
+  if(mode==='isometric')state.photos.forEach(photo=>{if(photo?.sample)photo.imageOffsetY=58});
   state.photosByMode[mode]=state.photos;
   state.count=state.photos.length;
   state.selected=Math.min(state.selected,state.count-1);
@@ -106,50 +154,52 @@ function loadPhotoSet(mode, fallbackCount=DEFAULT_PHOTO_COUNTS[mode]||12){
 const app = document.querySelector('#app');
 app.innerHTML = `
 <header class="topbar">
-  <a class="brand" href="#"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span>图片墙</span></a>
+  <a class="brand" id="brandSettingsTrigger" href="#" aria-label="设置" aria-expanded="false"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span>图片墙</span><span class="brand-notice-dot" aria-hidden="true"></span></a>
   <span class="top-divider"></span><button class="top-button" id="projectButton"><span class="folder-icon" aria-hidden="true"><svg viewBox="0 0 181.67 164.91"><path d="M25,164.91A13.33,13.33,0,0,1,11.8,153.34L0,62.48a5.13,5.13,0,0,1,4.44-5.73,4.73,4.73,0,0,1,.65,0H20.41V13.29A13.3,13.3,0,0,1,33.69,0h25.2a13.32,13.32,0,0,1,10,4.57l14.73,17a3,3,0,0,0,2.29,1h62A13.3,13.3,0,0,1,161.26,35.9V56.71h15.29a5.14,5.14,0,0,1,5.08,5.78l-11.76,90.86a13.33,13.33,0,0,1-13.16,11.56H25Zm-3-12.9a3,3,0,0,0,2.54,2.6l.4,0H156.71a3.06,3.06,0,0,0,3-2.64l11-85.07H10.94ZM33.69,10.23a3,3,0,0,0-3,3V56.69H151V35.89a3.05,3.05,0,0,0-2.49-3l-.49-.06H86a13.28,13.28,0,0,1-10-4.57l-14.74-17a3,3,0,0,0-2.27-1.06Z" fill="currentColor"></path></svg></span>项目</button><span class="top-divider small"></span>
   <div class="project-menu" id="projectMenu" aria-hidden="true">
     <div class="project-menu-heading"><b>项目</b><button id="closeProjectMenu" type="button" aria-label="关闭">×</button></div>
     <div class="project-create"><input id="projectNameInput" type="text" maxlength="32" placeholder="新项目名称"><button id="createProjectButton" type="button">新建</button></div>
     <div class="project-list" id="projectList"></div>
   </div>
-  <button class="icon-button" id="undoButton" title="撤销" disabled>↶</button><button class="icon-button" id="redoButton" title="重做" disabled>↷</button>
   <div class="project-name" id="projectName">环绕弯曲 <span class="saved-dot"></span></div>
-  <button class="icon-button theme-button" id="themeButton" title="切换主题">☼</button>
-  <div class="export-control" id="exportControl"><button class="primary-button export-trigger" id="exportButton" title="导出" aria-haspopup="listbox" aria-expanded="false"><svg class="export-icon" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M544.256 605.184l244.224-244.224a31.744 31.744 0 0 1 45.056 45.056l-295.424 295.424a36.864 36.864 0 0 1-51.2 0L190.464 406.528a31.744 31.744 0 1 1 45.056-45.056l244.224 244.224V111.104a32.256 32.256 0 1 1 64 0zM153.6 902.656a32.256 32.256 0 0 1 0-64h716.8a32.256 32.256 0 0 1 0 64z" fill="currentColor"></path></svg><span class="export-label">导出</span><i class="export-arrow" aria-hidden="true"></i></button><div class="export-menu" id="exportMenu" role="listbox" aria-label="导出格式"><button type="button" role="option" data-export-format="png"><b>PNG</b></button><button type="button" role="option" data-export-format="jpeg"><b>JPEG</b></button></div></div>
+  <div class="settings-control" id="settingsControl"><button class="icon-button theme-button" id="themeButton" title="设置" aria-label="设置" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19.43 12.98c.04-.32.07-.65.07-.98s-.02-.66-.07-.98l2.11-1.65a.5.5 0 0 0 .12-.64l-2-3.46a.5.5 0 0 0-.61-.22l-2.49 1a7.4 7.4 0 0 0-1.69-.98L14.5 2.42A.49.49 0 0 0 14 2h-4a.49.49 0 0 0-.49.42L9.13 5.07c-.61.25-1.18.58-1.69.98l-2.49-1a.49.49 0 0 0-.61.22l-2 3.46a.5.5 0 0 0 .12.64l2.11 1.65c-.04.32-.08.65-.08.98s.03.66.08.98l-2.11 1.65a.5.5 0 0 0-.12.64l2 3.46c.14.24.42.34.61.22l2.49-1c.51.4 1.08.73 1.69.98l.38 2.65c.04.24.24.42.49.42h4c.25 0 .46-.18.49-.42l.38-2.65c.61-.25 1.18-.58 1.69-.98l2.49 1c.23.09.5.01.61-.22l2-3.46a.5.5 0 0 0-.12-.64l-2.11-1.65ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z" fill="currentColor"></path></svg></button><div class="settings-menu" id="settingsMenu" aria-hidden="true"><div class="settings-menu-label settings-section-title">主题</div><div class="theme-choice"><button type="button" data-theme-choice="dark">暗夜模式</button><button type="button" data-theme-choice="light">白天模式</button></div><div class="settings-menu-label settings-section-title language-title">语言</div><div class="theme-choice language-choice"><button type="button" data-language-choice="zh">中文</button><button type="button" data-language-choice="en">English</button></div><div class="author-card"><b class="settings-section-title">作者介绍</b><div class="author-profile"><div class="author-copy"><p>一个正在摸爬滚打的职场 PPTer，<br>日常分享好用的 PPT 模板。</p></div><figure class="xiaohongshu-qr"><img src="/xiaohongshu-qr.jpg" alt="小红书主页二维码"><figcaption>邦邦PPT</figcaption></figure></div><div class="reward-qr"><b class="settings-section-title">赞赏二维码</b><small class="reward-note">如果您觉得有哪些眼前一亮的功能，可以给作者打赏~</small><figure><img src="/reward-qr.png" alt="赞赏二维码"></figure></div></div></div></div>
+  <div class="export-control" id="exportControl"><button class="primary-button export-trigger" id="exportButton" title="导出" aria-haspopup="dialog" aria-expanded="false"><svg class="export-icon" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M544.256 605.184l244.224-244.224a31.744 31.744 0 0 1 45.056 45.056l-295.424 295.424a36.864 36.864 0 0 1-51.2 0L190.464 406.528a31.744 31.744 0 1 1 45.056-45.056l244.224 244.224V111.104a32.256 32.256 0 1 1 64 0zM153.6 902.656a32.256 32.256 0 0 1 0-64h716.8a32.256 32.256 0 0 1 0 64z" fill="currentColor"></path></svg><span class="export-label">导出</span><i class="export-arrow" aria-hidden="true"></i></button></div>
 </header>
 <main class="workspace">
   <aside class="preset-rail">
-    <div class="rail-heading">3D透视 <span class="rail-count">04</span></div>
+    <div class="rail-heading">3D透视 <span class="rail-count">05</span></div>
     <div class="preset-grid">
       <button class="preset-card selected" id="ringPreset"><span class="preset-art" data-preview-mode="ring"></span><span class="preset-title">环绕弯曲</span></button>
       <button class="preset-card" id="bloomPreset"><span class="preset-art" data-preview-mode="bloom"></span><span class="preset-title">环形绽放</span></button>
       <button class="preset-card" id="curvedPreset"><span class="preset-art" data-preview-mode="curved"></span><span class="preset-title">上下弧形墙</span></button>
       <button class="preset-card" id="curvedHorizontalPreset"><span class="preset-art" data-preview-mode="curvedHorizontal"></span><span class="preset-title">左右弧形墙</span></button>
+      <button class="preset-card" id="singlePreset"><span class="preset-art" data-preview-mode="single"></span><span class="preset-title">单侧弯曲</span></button>
     </div>
-    <div class="rail-heading grid-rail-heading">网格 <span class="rail-count">01</span></div>
+    <div class="rail-heading grid-rail-heading">网格 <span class="rail-count">02</span></div>
     <div class="preset-grid">
-      <button class="preset-card" id="gridPreset"><span class="preset-art grid-art horizontal-art" data-preview-mode="grid"></span><span class="preset-title">网格墙</span></button>
+      <button class="preset-card" id="gridPreset"><span class="preset-art grid-art horizontal-art" data-preview-mode="grid"></span><span class="preset-title">倾斜网格墙</span></button>
+      <button class="preset-card" id="isometricPreset"><span class="preset-art grid-art horizontal-art" data-preview-mode="isometric"></span><span class="preset-title">等距45度</span></button>
     </div>
   </aside>
   <section class="stage-column">
     <div class="stage" id="stage">
-      <div class="stage-center" id="stageCenter"><div class="scene-frame" id="sceneFrame"><div id="renderHost"></div><svg class="tilt-gizmo" id="tiltGizmo" viewBox="0 0 1000 700" preserveAspectRatio="none" aria-hidden="true"><line class="tilt-gizmo-axis" data-gizmo-axis="x" x1="500" y1="350" x2="680" y2="350"></line><line class="tilt-gizmo-axis" data-gizmo-axis="y" x1="500" y1="350" x2="500" y2="170"></line><line class="tilt-gizmo-axis" data-gizmo-axis="z" x1="500" y1="350" x2="400" y2="450"></line><text data-gizmo-label="x" x="692" y="350">X</text><text data-gizmo-label="y" x="500" y="155">Y</text><text data-gizmo-label="z" x="386" y="464">Z</text></svg><button class="tilt-gizmo-reset" id="tiltGizmoReset" type="button" aria-label="重置当前效果" title="重置当前效果"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="${EFFECT_RESET_ICON_PATH}" fill="currentColor"></path></svg></button><button class="tilt-gizmo-toggle" id="tiltGizmoToggle" type="button" aria-label="显示三轴辅助线" aria-pressed="false" title="显示三轴辅助线"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="${TILT_GIZMO_ICON_PATH}" fill="currentColor"></path></svg></button></div><div class="stage-label"><span class="live-dot"></span>实时预览</div></div>
+      <div class="stage-center" id="stageCenter"><div class="scene-frame" id="sceneFrame"><div id="renderHost"></div><svg class="tilt-gizmo" id="tiltGizmo" viewBox="0 0 1000 700" preserveAspectRatio="none" aria-hidden="true"><line class="tilt-gizmo-axis" data-gizmo-axis="x" x1="500" y1="350" x2="680" y2="350"></line><line class="tilt-gizmo-axis" data-gizmo-axis="y" x1="500" y1="350" x2="500" y2="170"></line><line class="tilt-gizmo-axis" data-gizmo-axis="z" x1="500" y1="350" x2="400" y2="450"></line><text data-gizmo-label="x" x="692" y="350">X</text><text data-gizmo-label="y" x="500" y="155">Y</text><text data-gizmo-label="z" x="386" y="464">Z</text></svg><button class="tilt-gizmo-reset" id="tiltGizmoReset" type="button" aria-label="重置当前效果" title="重置当前效果"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="${EFFECT_RESET_ICON_PATH}" fill="currentColor"></path></svg></button><button class="tilt-gizmo-toggle" id="tiltGizmoToggle" type="button" aria-label="显示三轴辅助线" aria-pressed="false" title="显示三轴辅助线"><svg viewBox="0 0 184 157.93" aria-hidden="true"><path d="${TILT_GIZMO_ICON_PATH}" fill="currentColor"></path></svg></button></div><div class="stage-label"><span class="live-dot"></span>实时预览</div></div>
       <div class="canvas-drop-hint">松开鼠标，将图片添加到照片墙</div>
-      <div class="stage-actions"><div class="preview-quality-control" id="previewQualityControl"><button class="preview-quality-trigger" id="previewQualityTrigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="预览精度"><span id="previewQualityLabel">标准</span><i class="preview-quality-arrow" aria-hidden="true"></i></button><div class="preview-quality-menu" id="previewQualityMenu" role="listbox" aria-label="预览精度选项"><button type="button" role="option" data-preview-quality="standard" aria-selected="true">标准</button><button type="button" role="option" data-preview-quality="original">原图</button></div></div><span class="stage-separator"></span><button id="fitButton">适合画布</button><span class="stage-separator"></span><button id="zoomOutButton">−</button><span id="zoomLabel">130%</span><button id="zoomInButton">＋</button></div>
+      <div class="stage-actions"><div class="preview-quality-control" id="previewQualityControl"><button class="preview-quality-trigger" id="previewQualityTrigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="预览精度"><span id="previewQualityLabel">标准</span><i class="preview-quality-arrow" aria-hidden="true"></i></button><div class="preview-quality-menu" id="previewQualityMenu" role="listbox" aria-label="预览精度选项"><button type="button" role="option" data-preview-quality="standard" aria-selected="true">标准</button><button type="button" role="option" data-preview-quality="original">原图</button></div></div><span class="stage-separator"></span><button id="fitButton">适合画布</button><span class="stage-separator"></span><button id="zoomOutButton">−</button><span id="zoomLabel" contenteditable="true" role="spinbutton" aria-label="视口缩放百分比">130%</span><button id="zoomInButton">＋</button></div>
     </div>
     <footer class="preview-bar"><span class="preview-tip" id="previewTip"><kbd>左键拖动</kbd> 360度查看 · <kbd>Alt + 左键</kbd> 平移视角 · <kbd>滚轮</kbd> 缩放照片 <span>·</span> <kbd>双击</kbd> 选中并替换</span><span class="preview-resolution" id="resolutionLabel">1920 × 1080 px</span></footer>
   </section>
   <aside class="inspector">
     <section class="inspector-section">
       <div class="ratio-grid" id="ratioGrid"></div>
-      <div class="custom-size"><div class="custom-size-heading"><label>自定义比例</label><div class="ratio-input-row"><div class="ratio-slot"><input id="ratioWidthInput" type="number" min="1" max="100" step="0.1" value="16" aria-label="比例宽"></div><span class="ratio-separator">:</span><div class="ratio-slot"><input id="ratioHeightInput" type="number" min="1" max="100" step="0.1" value="9" aria-label="比例高"></div><div class="resolution-preset-control" id="resolutionPresetControl"><button class="resolution-preset-trigger" id="resolutionPresetTrigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="基准分辨率"><span id="resolutionPresetLabel">2K</span><i class="preview-quality-arrow" aria-hidden="true"></i></button><div class="resolution-preset-menu" id="resolutionPresetMenu" role="listbox" aria-label="基准分辨率选项"><button type="button" role="option" data-resolution-preset="1K">1K</button><button type="button" role="option" data-resolution-preset="2K" aria-selected="true">2K</button><button type="button" role="option" data-resolution-preset="4K">4K</button></div></div></div></div></div>
+      <div class="custom-size"><div class="custom-size-heading"><label>自定义比例</label><div class="ratio-input-row"><div class="ratio-slot"><input id="ratioWidthInput" type="number" min="1" max="100" step="0.1" value="16" aria-label="比例宽"></div><span class="ratio-separator">:</span><div class="ratio-slot"><input id="ratioHeightInput" type="number" min="1" max="100" step="0.1" value="9" aria-label="比例高"></div></div></div></div>
       <div class="background-row"><span>背景颜色</span><label class="color-control"><input type="color" id="bgColorInput" value="#101014"><span class="color-swatch"></span><span class="color-code">#101014</span></label></div>
+      <div class="background-image-row"><label class="background-upload" for="bgImageInput"><span>上传背景图片</span><small>支持 JPG、PNG、WebP</small><input id="bgImageInput" type="file" accept="image/*"></label><button id="applyBackgroundRatio" type="button" disabled title="应用图片比例到自定义比例" aria-label="应用图片比例到自定义比例"><svg class="background-action-icon ratio-action-icon" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M716.8 770.56H307.2c-29.696 0-53.76-24.064-53.76-53.76V307.2c0-29.696 24.064-53.76 53.76-53.76h409.6c29.696 0 53.76 24.064 53.76 53.76v409.6c0 29.696-24.064 53.76-53.76 53.76z m-396.8-66.56h384v-384h-384v384zM911.36 320c-18.432 0-33.28-14.848-33.28-33.28V145.92H737.28c-18.432 0-33.28-14.848-33.28-33.28s14.848-33.28 33.28-33.28h174.08c18.432 0 33.28 14.848 33.28 33.28v174.08c0 18.432-14.848 33.28-33.28 33.28zM911.36 944.64h-174.08c-18.432 0-33.28-14.848-33.28-33.28s14.848-33.28 33.28-33.28h140.8V737.28c0-18.432 14.848-33.28 33.28-33.28s33.28 14.848 33.28 33.28v174.08c0 18.432-14.848 33.28-33.28 33.28z" fill="currentColor"></path><path d="M112.64 320c-18.432 0-33.28-14.848-33.28-33.28V112.64c0-18.432 14.848-33.28 33.28-33.28h174.08c18.432 0 33.28 14.848-33.28 33.28s-14.848 33.28-33.28 33.28H145.92V286.72c0 18.432-14.848 33.28-33.28 33.28zM286.72 944.64H112.64c-18.432 0-33.28-14.848-33.28-33.28v-174.08c0-18.432 14.848-33.28 33.28-33.28s33.28 14.848 33.28 33.28v140.8H286.72c18.432 0 33.28 14.848 33.28 33.28s-14.848 33.28-33.28 33.28z" fill="currentColor"></path></svg></button><button id="clearBackgroundImage" type="button" disabled title="清除背景图片" aria-label="清除背景图片"><svg class="background-action-icon trash-icon" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M227.555556 312.888889m17.066666 0l534.755556 0q17.066667 0 17.066666 17.066667l0 0q0 17.066667-17.066666 17.066666l-534.755556 0q-17.066667 0-17.066666-17.066666l0 0q0-17.066667 17.066666-17.066667Z" fill="currentColor"></path><path d="M420.977778 233.244444m17.066666 0l147.911112 0q17.066667 0 17.066666 17.066667l0 0q0 17.066667-17.066666 17.066667l-147.911112 0q-17.066666 0-17.066666-17.066667l0 0q0-17.066667 17.066666-17.066667Z" fill="currentColor"></path><path d="M318.577778 335.644444v328.533334c0 49.737956 49.533156 91.517156 112.389689 92.427378l2.0992 0.017066h157.866666c63.146667 0 113.379556-41.233067 114.471823-90.794666l0.017066-1.649778V335.644444h34.133334v328.533334c0 69.961956-65.820444 125.457067-146.181689 126.560711l-2.440534 0.017067h-157.866666c-80.645689 0-147.279644-54.795378-148.599467-124.461512L284.444444 664.177778V335.644444h34.133334z" fill="currentColor"></path></svg></button></div>
     </section>
     <section class="inspector-section media-section">
       <div class="section-heading"><h2>图片 <span class="muted-dot">·</span> <span id="slotCountLabel">12 个槽位</span></h2></div>
       <div class="media-toolbar"><span>槽位数量</span><div class="stepper"><button id="slotMinus">−</button><output id="slotCountOutput">12</output><button id="slotPlus">＋</button></div></div>
-      <div class="upload-row"><button class="upload-button" id="uploadButton"><span class="upload-icon">↑</span><span><b>读取本地图片</b><small>支持多选 · JPG、PNG、WebP</small></span></button><button class="folder-upload clear-images-button" id="clearImagesButton" title="清空所有图片" aria-label="清空所有图片"><svg class="trash-icon" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M227.555556 312.888889m17.066666 0l534.755556 0q17.066667 0 17.066666 17.066667l0 0q0 17.066667-17.066666 17.066666l-534.755556 0q-17.066667 0-17.066666-17.066666l0 0q0-17.066667 17.066666-17.066667Z" fill="currentColor"></path><path d="M420.977778 233.244444m17.066666 0l147.911112 0q17.066667 0 17.066666 17.066667l0 0q0 17.066667-17.066666 17.066667l-147.911112 0q-17.066667 0-17.066666-17.066667l0 0q0-17.066667 17.066666-17.066667Z" fill="currentColor"></path><path d="M472.177778 455.111111m0 17.066667l0 142.222222q0 17.066667-17.066667 17.066667l0 0q-17.066667 0-17.066667-17.066667l0-142.222222q0-17.066667 17.066667-17.066667l0 0q17.066667 0 17.066667 17.066667Z" fill="currentColor"></path><path d="M585.955556 455.111111m0 17.066667l0 142.222222q0 17.066667-17.066667 17.066667l0 0q-17.066667 0-17.066667-17.066667l0-142.222222q0-17.066667 17.066667-17.066667l0 0q17.066667 0 17.066667 17.066667Z" fill="currentColor"></path><path d="M318.577778 335.644444v328.533334c0 49.737956 49.533156 91.517156 112.389689 92.427378l2.0992 0.017066h157.866666c63.146667 0 113.379556-41.233067 114.471823-90.794666l0.017066-1.649778V335.644444h34.133334v328.533334c0 69.961956-65.820444 125.457067-146.181689 126.560711l-2.440534 0.017067h-157.866666c-80.645689 0-147.279644-54.795378-148.599467-124.461512L284.444444 664.177778V335.644444h34.133334z" fill="currentColor"></path></svg></button><input type="file" id="fileInput" accept="image/*" multiple hidden></div>
+      <div class="upload-row"><button class="upload-button" id="uploadButton"><span class="upload-icon"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M921.6 757.76h-0.512c-3.072-23.04-22.528-40.96-46.08-40.96-24.064 0-43.52 17.92-46.08 40.96h-0.512s0 70.144-70.144 70.144H266.24c-70.144 0-70.144-70.144-70.144-70.144h-0.512c-3.072-23.04-22.528-40.96-46.08-40.96-24.064 0-43.52 17.92-46.08 40.96H102.4v5.632c0 3.584 0.512 7.168 1.024 10.24 5.12 41.472 30.72 147.456 162.816 147.456h491.52c123.904 0 154.112-100.864 161.792-144.384 1.536-4.608 2.048-9.216 2.048-13.824v-2.56-2.56zM212.992 412.672c4.096 14.848 15.36 26.624 30.72 30.208 14.848 4.096 30.72-0.512 41.472-11.776l185.344-184.32v475.648c0 23.552 18.944 42.496 42.496 42.496 11.264 0 22.016-4.608 30.208-12.288 8.192-7.68 12.288-18.944 12.288-30.208V247.808l184.32 183.296c16.896 16.384 43.52 16.384 60.416 0 16.896-16.384 16.896-43.52 0-59.904L542.72 114.688c-8.192-8.192-18.944-12.288-30.208-12.288s-22.016 4.608-30.208 12.288L224.768 371.2c-11.264 10.752-15.872 26.624-11.776 41.472z" fill="currentColor"></path></svg></span><span><b>读取本地图片</b><small>支持多选 · JPG、PNG、WebP</small></span></button><button class="folder-upload clear-images-button" id="clearImagesButton" title="清空所有图片" aria-label="清空所有图片"><svg class="trash-icon" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M227.555556 312.888889m17.066666 0l534.755556 0q17.066667 0 17.066666 17.066667l0 0q0 17.066667-17.066666 17.066666l-534.755556 0q-17.066667 0-17.066666-17.066666l0 0q0-17.066667 17.066666-17.066667Z" fill="currentColor"></path><path d="M420.977778 233.244444m17.066666 0l147.911112 0q17.066667 0 17.066666 17.066667l0 0q0 17.066667-17.066666 17.066667l-147.911112 0q-17.066667 0-17.066666-17.066667l0 0q0-17.066667 17.066666-17.066667Z" fill="currentColor"></path><path d="M472.177778 455.111111m0 17.066667l0 142.222222q0 17.066667-17.066667 17.066667l0 0q-17.066667 0-17.066667-17.066667l0-142.222222q0-17.066667 17.066667-17.066667l0 0q17.066667 0 17.066667 17.066667Z" fill="currentColor"></path><path d="M585.955556 455.111111m0 17.066667l0 142.222222q0 17.066667-17.066667 17.066667l0 0q-17.066667 0-17.066667-17.066667l0-142.222222q0-17.066667 17.066667-17.066667l0 0q17.066667 0 17.066667 17.066667Z" fill="currentColor"></path><path d="M318.577778 335.644444v328.533334c0 49.737956 49.533156 91.517156 112.389689 92.427378l2.0992 0.017066h157.866666c63.146667 0 113.379556-41.233067 114.471823-90.794666l0.017066-1.649778V335.644444h34.133334v328.533334c0 69.961956-65.820444 125.457067-146.181689 126.560711l-2.440534 0.017067h-157.866666c-80.645689 0-147.279644-54.795378-148.599467-124.461512L284.444444 664.177778V335.644444h34.133334z" fill="currentColor"></path></svg></button><input type="file" id="fileInput" accept="image/*" multiple hidden></div>
       <div class="slots-wrap" id="slotsWrap">
         <div class="photo-adjust-panel popup" id="photoAdjustPanel">
           <div class="photo-adjust-heading"><span>图片调整</span><small id="selectedPhotoLabel">槽位 1</small><button id="resetPhotoAdjust" type="button">重置</button><button id="closePhotoAdjust" type="button" title="关闭">×</button></div>
@@ -178,7 +228,13 @@ app.innerHTML = `
         <label class="range-control"><span id="curvedSpacingLabel">间距 <output id="curvedSpacingOutput">28 px</output></span><input id="curvedSpacingInput" type="range" min="0" max="160" step="1" data-wheel-step="1" value="28"></label>
         <div class="grid-choice-control curved-stagger-direction"><span>错位方向</span><div class="grid-choice" role="group" aria-label="错位方向"><button type="button" data-curved-stagger-direction="horizontal" aria-pressed="true">横向</button><button type="button" data-curved-stagger-direction="vertical" aria-pressed="false">竖向</button></div></div>
         <label class="range-control" title="控制相邻行或列的错位程度；接近 0% 时自动吸附到边缘对齐"><span>错位程度 <output id="staggerOutput">50%</output></span><input id="staggerInput" type="range" min="0" max="100" step="1" data-wheel-step="5" value="50"></label>
-        <label class="range-control angle-toggle" id="curveBendControl" title="正值向前凸，负值向后凹；右键循环切换角度档位"><span>整体弯曲 <output id="curveBendOutput">-120°</output></span><input id="curveBendInput" type="range" min="-180" max="180" step="1" data-wheel-step="10" value="-120"></label>
+        <label class="range-control angle-toggle" id="curveBendControl" title="正值向前凸，负值向后凹；右键循环切换角度档位"><span>整体弯曲 <output id="curveBendOutput">-120°</output></span><input id="curveBendInput" type="range" min="-360" max="360" step="1" data-wheel-step="10" value="-120"></label>
+        <div class="grid-choice-control single-fixed-edge-control mode-hidden"><span>固定边缘</span><div class="grid-choice" role="group" aria-label="固定边缘"><button type="button" data-single-fixed-edge="top" aria-pressed="false">上侧</button><button type="button" data-single-fixed-edge="right" aria-pressed="false">右侧</button><button type="button" data-single-fixed-edge="bottom" aria-pressed="false">下侧</button><button type="button" data-single-fixed-edge="left" aria-pressed="true">左侧</button></div></div>
+        <div class="decorative-wall-controls mode-hidden" id="decorativeWallControls">
+          <div class="grid-choice-control"><span>装饰弯曲墙</span><div class="grid-choice decorative-wall-toggle" role="group" aria-label="装饰弯曲墙"><button type="button" data-decorative-wall="off" aria-pressed="false">关闭</button><button type="button" data-decorative-wall="on" aria-pressed="true">开启</button></div></div>
+          <label class="range-control"><span>装饰透明度 <output id="decorativeWallOpacityOutput">30%</output></span><input id="decorativeWallOpacityInput" type="range" min="0" max="100" step="1" data-wheel-step="5" value="30"></label>
+          <label class="range-control"><span>装饰弯曲 <output id="decorativeWallProgressOutput">0%</output></span><input id="decorativeWallProgressInput" type="range" min="0" max="100" step="1" data-wheel-step="5" value="0"></label>
+        </div>
       </div>
       <div id="gridLayoutSettings" class="mode-hidden">
         <label class="range-control"><span>行数 <output id="gridRowCountOutput">4</output></span><input id="gridRowCountInput" type="range" min="1" max="8" step="1" data-wheel-step="1" value="4"></label>
@@ -190,14 +246,15 @@ app.innerHTML = `
       </div>
       <label class="range-control"><span>卡片圆角 <output id="cornerOutput">31 px</output></span><input id="cornerInput" type="range" min="0" max="94" step="1" data-wheel-step="1" value="31"></label>
       <label class="range-control angle-toggle" id="contentRotationControl" title="右键循环切换角度档位"><span>图片旋转 <output id="contentRotationOutput">0°</output></span><input id="contentRotationInput" type="range" min="0" max="360" step="1" data-wheel-step="10" value="0"></label>
+      <div class="grid-choice-control image-direction-control"><span>图片朝向</span><div class="grid-choice" role="group" aria-label="图片朝向"><button type="button" data-image-direction="up" aria-pressed="true">上</button><button type="button" data-image-direction="right" aria-pressed="false">右</button><button type="button" data-image-direction="down" aria-pressed="false">下</button><button type="button" data-image-direction="left" aria-pressed="false">左</button></div></div>
       <label class="range-control"><span>反面亮度 <output id="backBrightnessOutput">30%</output></span><input id="backBrightnessInput" type="range" min="0" max="100" step="1" data-wheel-step="5" value="30"></label>
       <label class="range-control mode-hidden" id="photoOpacityControl"><span>图片透明度 <output id="photoOpacityOutput">100%</output></span><input id="photoOpacityInput" type="range" min="0" max="100" step="1" data-wheel-step="5" value="100"></label>
       <div class="grid-choice-control tilt-axis-control" id="tiltAxisControl"><span>倾斜轴</span><div class="grid-choice" role="group" aria-label="倾斜轴"><button type="button" data-tilt-axis="x" aria-pressed="false">X</button><button type="button" data-tilt-axis="y" aria-pressed="false">Y</button><button type="button" data-tilt-axis="z" aria-pressed="true">Z</button></div></div>
       <label class="range-control angle-toggle" id="wallTiltControl" title="右键循环切换角度档位"><span>整体倾斜 <output id="wallTiltOutput">20°</output></span><input id="wallTiltInput" type="range" min="-180" max="180" step="1" data-wheel-step="10" value="20"></label>
       <div class="grid-choice-control camera-axis-control" id="cameraAxisControl"><span>相机旋转轴</span><div class="grid-choice" role="group" aria-label="相机旋转轴"><button type="button" data-camera-axis="x" aria-pressed="true">X</button><button type="button" data-camera-axis="y" aria-pressed="false">Y</button></div></div>
       <label class="range-control angle-toggle" id="cameraRotationControl" title="右键循环切换角度档位"><span id="cameraRotationLabel">相机X轴旋转 <output id="cameraRotationOutput">0°</output></span><input id="cameraRotationInput" type="range" min="-180" max="180" step="1" data-wheel-step="10" value="0"></label>
-      <label class="range-control"><span>透视角度 <output id="fovOutput">18°</output></span><input id="fovInput" type="range" min="5" max="120" step="1" data-wheel-step="5" value="18"></label>
-      <label class="range-control"><span>视口缩放 <output id="viewZoomOutput">130%</output></span><input id="viewZoomInput" type="range" min="40" max="400" step="1" data-wheel-step="10" value="130"></label>
+      <label class="range-control"><span>透视角度 <output id="fovOutput">18°</output></span><input id="fovInput" type="range" min="0" max="120" step="1" data-wheel-step="5" value="18"></label>
+      <label class="range-control"><span>视口缩放 <output id="viewZoomOutput">130%</output></span><input id="viewZoomInput" type="range" min="40" max="800" step="1" data-wheel-step="10" value="130"></label>
       <label class="range-control"><span>视角水平偏移（X） <output id="viewOffsetXOutput">0 px</output></span><input id="viewOffsetXInput" type="range" min="-1200" max="1200" step="1" data-wheel-step="100" value="0"></label>
       <label class="range-control"><span>视角垂直偏移（Y） <output id="viewOffsetYOutput">0 px</output></span><input id="viewOffsetYInput" type="range" min="-1200" max="1200" step="1" data-wheel-step="100" value="0"></label>
       <div class="preset-box">
@@ -211,6 +268,10 @@ app.innerHTML = `
 <div class="toast" id="toast" role="status"></div>`;
 
 const $ = selector => document.querySelector(selector);
+// Reuse the same trash glyph in both background controls and the image
+// toolbar so the two clear actions remain visually identical.
+const backgroundTrashButton=$('#clearBackgroundImage'),imageTrashIcon=$('#clearImagesButton')?.querySelector('svg');
+if(backgroundTrashButton&&imageTrashIcon){const clonedTrashIcon=imageTrashIcon.cloneNode(true);clonedTrashIcon.classList.add('background-action-icon');backgroundTrashButton.replaceChildren(clonedTrashIcon)}
 
 // Fixed square snapshots matching the reference compositions. Use the live
 // card geometry and rounded material shader; only the image material changes.
@@ -224,31 +285,35 @@ function renderPresetPreviews(){
   // Reference framing is deliberately independent of the editable viewport.
   const definitions={
     ring:{count:DEFAULT_PHOTO_COUNTS.ring,distance:36.5},
-    bloom:{count:DEFAULT_PHOTO_COUNTS.bloom,distance:16.5},
+    bloom:{count:DEFAULT_PHOTO_COUNTS.bloom,distance:16.5,previewZoom:.8},
     curved:{count:24,rows:3,columns:8,distance:15.8},
     // Give the left-right arc a denser five-row thumbnail. This is an
     // independent preview composition; the editable wall keeps its own
     // three-row default.
     curvedHorizontal:{count:24,rows:3,columns:8,distance:15.2},
+    single:{count:28,rows:4,columns:7,distance:15.2,previewZoom:.7,previewOffsetX:-4.4,previewOffsetY:-1.4},
     // Keep the original card geometry and spacing. The thumbnail is enlarged
     // by moving its preview camera closer, so the whole wall scales together.
     // The grid thumbnail uses a closer preview camera for a 1.5x overall
     // zoom. Card size and spacing stay unchanged; only the viewport framing
     // changes so the wall fills the small preview tile.
     grid:{count:DEFAULT_PHOTO_COUNTS.grid,distance:11.8},
+    isometric:{count:DEFAULT_PHOTO_COUNTS.isometric,rows:5,columns:5,distance:22,previewZoom:1.05},
   };
   try{
     document.querySelectorAll('[data-preview-mode]').forEach(host=>{
       const mode=host.dataset.previewMode,definition=definitions[mode];
       if(!definition)return;
       const settings=createModeSettings(mode);
-      const width=DEFAULT_CARD_WIDTH/DESIGN_SCALE,height=DEFAULT_CARD_HEIGHT/DESIGN_SCALE;
+      const width=(mode==='isometric'?240:DEFAULT_CARD_WIDTH)/DESIGN_SCALE,height=(mode==='isometric'?240:DEFAULT_CARD_HEIGHT)/DESIGN_SCALE;
       const rows=definition.rows||settings.rows;
       const columns=definition.columns||Math.ceil(definition.count/rows);
       const previewScene=new THREE.Scene();
       previewScene.background=new THREE.Color('#101014');
       const group=new THREE.Group();
       if(mode==='grid')group.position.set(-0.4,-0.6,0);
+      if(definition.previewOffsetX)group.position.x=definition.previewOffsetX;
+      if(definition.previewOffsetY)group.position.y=definition.previewOffsetY;
       const previewTiltX=THREE.MathUtils.degToRad(tiltValueFor(settings,'x'));
       const previewTiltY=THREE.MathUtils.degToRad(tiltValueFor(settings,'y'));
       const previewTiltZ=THREE.MathUtils.degToRad(tiltValueFor(settings,'z'));
@@ -257,7 +322,13 @@ function renderPresetPreviews(){
       group.rotateOnWorldAxis(WORLD_Y_AXIS,previewTiltY);
       group.rotateOnWorldAxis(WORLD_Z_AXIS,previewTiltZ);
       previewScene.add(group);
-      const previewCamera=new THREE.PerspectiveCamera(settings.fov,1,.1,100);
+      // A zero FOV is rendered with an orthographic camera in the editor.
+      // Zero FOV uses orthographic projection for every wall type.
+      const previewFov=Number(settings.fov)<=0?38:settings.fov;
+      const previewOrthoSpan=4.44/(definition.previewZoom||1);
+      const previewCamera=mode==='isometric'||Number(settings.fov)<=0
+        ?new THREE.OrthographicCamera(-previewOrthoSpan,previewOrthoSpan,previewOrthoSpan,-previewOrthoSpan,.1,100)
+        :new THREE.PerspectiveCamera(previewFov,1,.1,100);
       const yaw=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),THREE.MathUtils.degToRad(settings.rotation));
       const pitch=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-THREE.MathUtils.degToRad(settings.tilt));
       previewCamera.quaternion.copy(yaw.multiply(pitch));
@@ -272,22 +343,23 @@ function renderPresetPreviews(){
             ?ringCardPose(index,definition.count,settings.radius,settings.spacing/DESIGN_SCALE,THREE.MathUtils.degToRad(settings.contentRotation),width)
             :mode==='bloom'
               ?bloomCardPose(index,definition.count,settings.radius,settings.spacing/DESIGN_SCALE,THREE.MathUtils.degToRad(settings.contentRotation),width)
-            :mode==='grid'
+            :(mode==='grid'||mode==='isometric')
               ?gridCardPose(index,settings.rows,columns,settings.columnGap/DESIGN_SCALE,settings.rowGap/DESIGN_SCALE,settings.gridStagger/100,settings.gridStaggerDirection,width,height)
-              :curvedCardPose(index,rows,columns,settings.columnGap/DESIGN_SCALE,settings.rowGap/DESIGN_SCALE,settings.curveBend,width,height,mode==='curved'||mode==='curvedHorizontal'?0:settings.stagger/100,mode==='curvedHorizontal'?'vertical':'horizontal',settings.staggerDirection));
+              :curvedCardPose(index,rows,columns,settings.columnGap/DESIGN_SCALE,settings.rowGap/DESIGN_SCALE,settings.curveBend,width,height,mode==='curved'||mode==='curvedHorizontal'?0:settings.stagger/100,(mode==='curvedHorizontal'||(mode==='single'&&(settings.fixedEdge==='top'||settings.fixedEdge==='bottom'))) ? 'vertical':'horizontal',settings.staggerDirection,mode==='single'?settings.fixedEdge:'center'));
         }
         const depths=poses.map(pose=>Math.max(.1,-pose.position.clone().applyQuaternion(group.quaternion).applyMatrix4(previewCamera.matrixWorldInverse).z));
         const nearest=Math.min(...depths),farthest=Math.max(...depths),depthRange=Math.max(.001,farthest-nearest);
-        poses.forEach((pose,index)=>{
+        const addPreviewPose=(pose,index,toneColor,opacity=1)=>{
           const scale=pose.width/width;
           const radius=mode==='ring'?settings.radius/Math.max(scale,.001):pose.curvatureRadius||0;
           const axis=pose.curvatureAxis||'x',key=`${radius}:${axis}`;
           if(!geometries.has(key))geometries.set(key,createCardGeometry(radius,axis,width,height));
-          const toneColor=index%2?'#7d808c':'#4f5159';
           const corner={value:settings.corner/DESIGN_SCALE},cardSize={value:new THREE.Vector2(width,height)};
           const front=createCardMaterial(corner,THREE.FrontSide,1,cardSize);
           const back=createCardMaterial(corner,THREE.BackSide,1,cardSize);
           front.color.set(toneColor);back.color.set(toneColor);
+          front.opacity=opacity;back.opacity=opacity;
+          front.depthWrite=opacity>=.99;back.depthWrite=opacity>=.99;
           cardMaterials.push(front,back);
           for(const material of [front,back]){
             const mesh=new THREE.Mesh(geometries.get(key),material);
@@ -296,7 +368,17 @@ function renderPresetPreviews(){
             mesh.scale.set(scale,1,scale);
             group.add(mesh);
           }
-        });
+        };
+        // The single-side thumbnail previews both layers: a dark, flat
+        // decorative wall underneath and the brighter curved wall above it.
+        if(mode==='single'){
+          for(let index=0;index<definition.count;index++){
+            const previewAxis=(settings.fixedEdge==='top'||settings.fixedEdge==='bottom')?'vertical':'horizontal';
+            const pose=curvedCardPose(index,rows,columns,settings.columnGap/DESIGN_SCALE,settings.rowGap/DESIGN_SCALE,0,width,height,settings.stagger/100,previewAxis,settings.staggerDirection,settings.fixedEdge);
+            addPreviewPose(pose,index,index%2?'#858a98':'#6f7482',.35);
+          }
+        }
+        poses.forEach((pose,index)=>addPreviewPose(pose,index,index%2?'#7d808c':'#4f5159',1));
         previewRenderer.render(previewScene,previewCamera);
         // Copy the actual WebGL output into a static canvas before disposing
         // GPU resources. This needs no extra live WebGL contexts or updates.
@@ -355,7 +437,7 @@ document.querySelectorAll('.angle-toggle').forEach(control=>{
     const current=Number(range.value);
     const min=Number(range.min),max=Number(range.max);
     const isUnsigned=min>=0;
-    const cycle=isUnsigned?[0,90,180,270]:ANGLE_SNAP_VALUES;
+    const cycle=control.id==='curveBendControl'?[0,90,180,270,360,-360,-270,-180,-90]:(isUnsigned?[0,90,180,270]:ANGLE_SNAP_VALUES);
     const index=cycle.findIndex(value=>Math.abs(value-current)<0.001);
     const next=cycle[(index<0?0:index+1)%cycle.length];
     range.value=String(Math.min(max,Math.max(min,next)));
@@ -375,8 +457,8 @@ function defaultRangeValue(input){
     case 'photoScaleInput': return 100;
     case 'photoOffsetXInput':
     case 'photoOffsetYInput': return 0;
-    case 'cardWidthInput': return DEFAULT_CARD_WIDTH;
-    case 'cardHeightInput': return DEFAULT_CARD_HEIGHT;
+    case 'cardWidthInput': return settings.cardWidth??DEFAULT_CARD_WIDTH;
+    case 'cardHeightInput': return settings.cardHeight??DEFAULT_CARD_HEIGHT;
     case 'radiusInput': return settings.radius*DESIGN_SCALE;
     case 'spacingInput': return settings.spacing;
     case 'rowCountInput':
@@ -425,12 +507,78 @@ const slotsList = $('#slotsList');
 const slotsWrap = $('#slotsWrap');
 const toast = $('#toast');
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#101014');
+let backgroundColor='#101014';
+let backgroundImage=null;
+let backgroundTexture=null;
+scene.background = new THREE.Color(backgroundColor);
+function setBackgroundColor(value){
+  backgroundColor=String(value||'#101014');
+  if(!backgroundTexture)scene.background=new THREE.Color(backgroundColor);
+  const input=$('#bgColorInput');if(input)input.value=backgroundColor;
+  const code=$('.color-code');if(code)code.textContent=backgroundColor.toUpperCase();
+  const swatch=$('.color-swatch');if(swatch)swatch.style.background=backgroundColor;
+}
+function disposeBackgroundImage(){
+  if(backgroundTexture){backgroundTexture.dispose();backgroundTexture=null}
+  if(backgroundImage?.objectUrl)URL.revokeObjectURL(backgroundImage.objectUrl);
+  backgroundImage=null;
+  scene.background=new THREE.Color(backgroundColor);
+  const apply=$('#applyBackgroundRatio'),clear=$('#clearBackgroundImage');if(apply)apply.disabled=true;if(clear)clear.disabled=true;
+}
+function updateBackgroundImageUI(){
+  const apply=$('#applyBackgroundRatio'),clear=$('#clearBackgroundImage');
+  if(apply)apply.disabled=!backgroundImage;
+  if(clear)clear.disabled=!backgroundImage;
+  const upload=$('.background-upload');if(upload)upload.classList.toggle('has-image',Boolean(backgroundImage));
+}
+async function loadBackgroundImage(file,assetId=makeId()){
+  if(!file||!file.type?.startsWith('image/')){notify('请选择图片文件');return false}
+  const objectUrl=URL.createObjectURL(file),image=new Image();
+  try{
+    await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=reject;image.src=objectUrl});
+    const texture=new THREE.Texture(image);texture.colorSpace=THREE.SRGBColorSpace;texture.needsUpdate=true;
+    disposeBackgroundImage();backgroundTexture=texture;backgroundImage={assetId,blob:file,objectUrl,width:image.naturalWidth,height:image.naturalHeight,name:file.name};scene.background=texture;updateBackgroundImageUI();render();
+    savePhotoAsset(assetId,file).catch(()=>notify('背景图片已加载，但浏览器保存失败'));
+    scheduleProjectSave();return true;
+  }catch{URL.revokeObjectURL(objectUrl);notify('背景图片读取失败');return false}
+}
+async function hydrateBackgroundImage(assetId){
+  if(!assetId)return;
+  const stored=await readPhotoAsset(assetId).catch(()=>null);if(stored?.blob)await loadBackgroundImage(stored.blob,assetId);
+}
+function backgroundRatio(){
+  if(!backgroundImage?.width||!backgroundImage?.height)return null;
+  const divisor=(a,b)=>{while(b){const t=a%b;a=b;b=t}return a||1};
+  const d=divisor(Math.round(backgroundImage.width),Math.round(backgroundImage.height));
+  let width=backgroundImage.width/d,height=backgroundImage.height/d;
+  const scale=Math.min(1,RATIO_MAX/Math.max(width,height));width*=scale;height*=scale;
+  return {width:clampRatioValue(width,16),height:clampRatioValue(height,9)};
+}
 const wallGroup = new THREE.Group();
 scene.add(wallGroup);
-const camera = new THREE.PerspectiveCamera(state.fov,16/9,.1,80);
+const decorativeGroup = new THREE.Group();
+decorativeGroup.position.z=-0.035;
+scene.add(decorativeGroup);
+let decorativeCards=[];
+let camera = new THREE.PerspectiveCamera(state.fov,16/9,.1,80);
 camera.position.set(0,.2,12.6);
 const cameraTarget = new THREE.Vector3();
+let isOrthographicCamera=false;
+function shouldUseOrthographicCamera(){return isIsometricMode(state.mode)||Number(state.fov)<=0}
+function setCameraProjection(orthographic){
+  const next=Boolean(orthographic);
+  if(next===isOrthographicCamera)return;
+  const previous=camera;
+  const width=host.getBoundingClientRect().width||16,height=host.getBoundingClientRect().height||9,aspect=width/Math.max(1,height);
+  camera=next
+    ?new THREE.OrthographicCamera(-aspect,aspect,1,-1,.1,200)
+    :new THREE.PerspectiveCamera(state.fov,aspect,.1,80);
+  // OrthographicCamera has no built-in aspect property. Our fitting code
+  // needs it even when the renderer size did not change between modes.
+  camera.aspect=aspect;
+  camera.position.copy(previous.position);camera.quaternion.copy(previous.quaternion);
+  isOrthographicCamera=next;
+}
 const renderer = new THREE.WebGLRenderer({antialias:true,alpha:false,preserveDrawingBuffer:true});
 renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -469,7 +617,7 @@ function ratioPartsForDimensions(width,height){
   const [ratioWidth,ratioHeight]=aspectRatioLabel(width,height).split(':').map(Number);
   return {width:clampRatioValue(ratioWidth,16),height:clampRatioValue(ratioHeight,9)};
 }
-function dimensionsForAspectRatio(value,longEdge=RESOLUTION_PRESETS[state.resolutionPreset]||RESOLUTION_PRESETS[DEFAULT_RESOLUTION_PRESET]){
+function dimensionsForAspectRatio(value,longEdge=RESOLUTION_PRESETS[DEFAULT_RESOLUTION_PRESET]){
   const ratio=parseAspectRatio(value);if(!ratio)return null;
   let width,height;
   if(ratio.width>=ratio.height){width=longEdge;height=Math.round(longEdge*ratio.height/ratio.width)}
@@ -502,7 +650,8 @@ function ringLayoutRadius(){
 function curvedPoseFor(index){
   if(isGridMode())return gridCardPose(index,state.rows,state.columns,state.columnGap/DESIGN_SCALE,state.rowGap/DESIGN_SCALE,state.gridStagger/100,state.gridStaggerDirection,cardWidthWorld(),cardHeightWorld());
   const axis=state.mode==='curvedHorizontal'?'vertical':'horizontal';
-  return curvedCardPose(index,state.rows,state.columns,state.columnGap/DESIGN_SCALE,state.rowGap/DESIGN_SCALE,state.curveBend,cardWidthWorld(),cardHeightWorld(),state.stagger/100,axis,state.staggerDirection);
+  const poseAxis=state.mode==='single'&&(state.fixedEdge==='top'||state.fixedEdge==='bottom')?'vertical':axis;
+  return curvedCardPose(index,state.rows,state.columns,state.columnGap/DESIGN_SCALE,state.rowGap/DESIGN_SCALE,state.curveBend,cardWidthWorld(),cardHeightWorld(),state.stagger/100,poseAxis,state.staggerDirection,state.mode==='single'?state.fixedEdge:'center');
 }
 function tiltKey(axis){return axis==='y'?'tiltY':axis==='z'?'tiltZ':'tiltX'}
 function tiltValueFor(source,axis){
@@ -586,21 +735,47 @@ function layoutFitSize(){
     maxZ=Math.max(maxZ,Math.abs(pose.position.z)+cardHeightWorld()/2);
   }
   if(isGridMode()){
-    const q=makeWorldTiltQuaternion(tiltValueFor(state,'x'),tiltValueFor(state,'y'),tiltValueFor(state,'z'));
-    const m=new THREE.Matrix4().makeRotationFromQuaternion(q),e=m.elements;
-    const halfWidth=Math.abs(e[0])*maxX+Math.abs(e[4])*maxY+Math.abs(e[8])*maxZ;
-    const halfHeight=Math.abs(e[1])*maxX+Math.abs(e[5])*maxY+Math.abs(e[9])*maxZ;
-    return {halfWidth:halfWidth*1.08,halfHeight:halfHeight*1.08};
+    if(!isIsometricMode()){
+      const q=makeWorldTiltQuaternion(tiltValueFor(state,'x'),tiltValueFor(state,'y'),tiltValueFor(state,'z'));
+      const m=new THREE.Matrix4().makeRotationFromQuaternion(q),e=m.elements;
+      const halfWidth=Math.abs(e[0])*maxX+Math.abs(e[4])*maxY+Math.abs(e[8])*maxZ;
+      const halfHeight=Math.abs(e[1])*maxX+Math.abs(e[5])*maxY+Math.abs(e[9])*maxZ;
+      return {halfWidth:halfWidth*1.08,halfHeight:halfHeight*1.08};
+    }
+    const wallQuaternion=makeWorldTiltQuaternion(tiltValueFor(state,'x'),tiltValueFor(state,'y'),tiltValueFor(state,'z')).clone();
+    const cameraYaw=new THREE.Quaternion().setFromAxisAngle(WORLD_Y_AXIS,THREE.MathUtils.degToRad(state.rotation||0));
+    const cameraPitch=new THREE.Quaternion().setFromAxisAngle(WORLD_X_AXIS,THREE.MathUtils.degToRad(-(state.tilt||0)));
+    const viewInverse=cameraYaw.multiply(cameraPitch).invert();
+    let projectedX=0,projectedY=0;
+    for(let index=0;index<state.count;index++){
+      const pose=curvedPoseFor(index),poseQuaternion=pose.quaternion;
+      for(const sx of [-1,1])for(const sy of [-1,1]){
+        const corner=new THREE.Vector3(sx*pose.width/2,sy*cardHeightWorld()/2,0).applyQuaternion(poseQuaternion).add(pose.position).applyQuaternion(wallQuaternion).applyQuaternion(viewInverse);
+        projectedX=Math.max(projectedX,Math.abs(corner.x));projectedY=Math.max(projectedY,Math.abs(corner.y));
+      }
+    }
+    return {halfWidth:Math.max(projectedX,.1)*1.08,halfHeight:Math.max(projectedY,.1)*1.08};
   }
   return {halfWidth:maxX*1.08,halfHeight:maxY*1.08};
 }
 function fitCamera(fitWall=false){
+  if(isOrthographicCamera){
+    const aspect=Math.max(.025,camera.aspect||1);
+    // Derive the complete projection from current settings on every path:
+    // slider edits, canvas orbit, resize, restore and projection switching.
+    const fit=layoutFitSize();cameraHalfSpan=Math.max(fit.halfHeight,fit.halfWidth/aspect);
+    const halfHeight=Math.max(.1,cameraHalfSpan*100/Math.max(1,state.zoom));
+    camera.left=-halfHeight*aspect;camera.right=halfHeight*aspect;camera.top=halfHeight;camera.bottom=-halfHeight;
+    cameraDistance=20;
+    camera.near=.1;camera.far=Math.max(80,cameraDistance+state.radius+20);
+    updateCameraOrbit();camera.updateProjectionMatrix();return;
+  }
   const halfFov=Math.tan(THREE.MathUtils.degToRad(camera.fov/2)),aspect=Math.max(.025,camera.aspect);
   if(fitWall){const fit=layoutFitSize();cameraHalfSpan=fit.halfHeight;const fitDistance=Math.max(fit.halfHeight/halfFov,fit.halfWidth/(halfFov*aspect));cameraDistance=fitDistance*100/state.zoom}
   else {const fitDistance=cameraHalfSpan/(halfFov*Math.min(1,aspect));cameraDistance=fitDistance*100/state.zoom}
   camera.far=Math.max(80,cameraDistance+state.radius+20);updateCameraOrbit();camera.updateProjectionMatrix();
 }
-function resize(){const b=host.getBoundingClientRect();if(!b.width||!b.height)return;const width=Math.round(b.width),height=Math.round(b.height);if(width!==lastCanvasSize.width||height!==lastCanvasSize.height){lastCanvasSize={width,height};renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix()}fitCamera();updateTransforms()}
+function resize(){const b=host.getBoundingClientRect();if(!b.width||!b.height)return;const width=Math.round(b.width),height=Math.round(b.height);if(width!==lastCanvasSize.width||height!==lastCanvasSize.height){lastCanvasSize={width,height};renderer.setSize(width,height,false)}camera.aspect=width/height;fitCamera();updateTransforms()}
 function releaseCard(card){
   if(!card)return;
   wallGroup.remove(card.mesh,card.backMesh);
@@ -608,6 +783,54 @@ function releaseCard(card){
   const old=card.frontMaterial.map||card.backMaterial.map;
   if(old)old.dispose();
   card.frontMaterial.dispose();card.backMaterial.dispose();card.mesh.geometry.dispose();
+}
+function releaseDecorativeCard(card){
+  if(!card)return;
+  decorativeGroup.remove(card.mesh,card.backMesh);
+  card.frontMaterial.dispose();card.backMaterial.dispose();
+  if(card.mesh.geometry)card.mesh.geometry.dispose();
+}
+function createDecorativeCard(index,sourceCard){
+  const cornerUniform={value:state.corner/DESIGN_SCALE};
+  const sizeUniform={value:new THREE.Vector2(cardWidthWorld(),cardHeightWorld())};
+  const frontMaterial=createCardMaterial(cornerUniform,THREE.FrontSide,1,sizeUniform);
+  const backMaterial=createCardMaterial(cornerUniform,THREE.BackSide,state.backBrightness/100,sizeUniform);
+  frontMaterial.depthWrite=false;backMaterial.depthWrite=false;
+  const geometry=createCardGeometry();
+  const mesh=new THREE.Mesh(geometry,frontMaterial),backMesh=new THREE.Mesh(geometry,backMaterial);
+  mesh.userData.slot=index;backMesh.userData.slot=index;
+  decorativeGroup.add(mesh,backMesh);
+  const card={mesh,backMesh,frontMaterial,backMaterial,cornerUniform,sizeUniform,geometryKey:'',source:sourceCard};
+  decorativeCards[index]=card;
+  return card;
+}
+function decorativePoseFor(index){
+  const axis=state.fixedEdge==='top'||state.fixedEdge==='bottom'?'vertical':'horizontal';
+  return curvedCardPose(index,state.rows,state.columns,state.columnGap/DESIGN_SCALE,state.rowGap/DESIGN_SCALE,state.curveBend*(THREE.MathUtils.clamp(Number(state.decorativeWallProgress)||0,0,100)/100),cardWidthWorld(),cardHeightWorld(),state.stagger/100,axis,state.staggerDirection,state.fixedEdge);
+}
+function updateDecorativeTransforms(){
+  const enabled=state.mode==='single'&&state.decorativeWallEnabled&&Number(state.decorativeWallOpacity)>0;
+  decorativeGroup.visible=enabled;
+  if(!enabled)return;
+  const opacity=THREE.MathUtils.clamp(Number(state.decorativeWallOpacity)||0,0,100)/100;
+  for(let i=0;i<state.count;i++){
+    const sourceCard=cards[i];if(!sourceCard)continue;
+    const card=decorativeCards[i]||createDecorativeCard(i,sourceCard);
+    const pose=decorativePoseFor(i);
+    card.source=sourceCard;
+    card.frontMaterial.map=sourceCard.frontMaterial.map;card.backMaterial.map=sourceCard.backMaterial.map;
+    card.frontMaterial.opacity=opacity;card.backMaterial.opacity=opacity;
+    card.frontMaterial.color.copy(sourceCard.frontMaterial.color);card.backMaterial.color.copy(sourceCard.backMaterial.color);
+    card.frontMaterial.needsUpdate=true;card.backMaterial.needsUpdate=true;
+    const cardScale=pose.width/cardWidthWorld();
+    const curvatureRadius=pose.curvatureRadius||0;
+    ensureCardGeometry(card,curvatureRadius,pose.curvatureAxis||'x');
+    card.mesh.position.copy(pose.position);card.mesh.quaternion.copy(pose.quaternion);card.mesh.scale.set(cardScale,1,cardScale);
+    card.backMesh.position.copy(card.mesh.position);card.backMesh.quaternion.copy(card.mesh.quaternion);card.backMesh.scale.copy(card.mesh.scale);
+    card.cornerUniform.value=state.corner/DESIGN_SCALE;
+    card.sizeUniform.value.set(cardWidthWorld(),cardHeightWorld());
+  }
+  for(let i=state.count;i<decorativeCards.length;i++)if(decorativeCards[i]){releaseDecorativeCard(decorativeCards[i]);decorativeCards[i]=null}
 }
 function createCardMaterial(cornerUniform,side,brightness,sizeUniform){
   const material=new THREE.MeshBasicMaterial({side,transparent:true,opacity:1,color:0xffffff,depthWrite:true,alphaTest:.01});
@@ -679,6 +902,8 @@ function applyCardTextureTransform(card){
   const offsetY=THREE.MathUtils.clamp(photoAdjustValue(photo,'imageOffsetY',0),-300,300)/100;
   const base=card.baseTextureRepeat||{x:1,y:1};
   const repeatX=Math.min(1,base.x/scale),repeatY=Math.min(1,base.y/scale);
+  texture.center.set(.5,.5);
+  texture.rotation=imageDirectionAngle(state.imageDirection);
   texture.repeat.set(repeatX,repeatY);
   texture.offset.set((1-repeatX)/2+offsetX*(1-repeatX)/2,(1-repeatY)/2+offsetY*(1-repeatY)/2);
   texture.needsUpdate=true;
@@ -719,7 +944,7 @@ function setCardPhoto(index,sourceOverride=null){
       card.baseTextureRepeat=baseTextureRepeat;
       texture.repeat.set(baseTextureRepeat.x,baseTextureRepeat.y);texture.offset.set((1-texture.repeat.x)/2,(1-texture.repeat.y)/2);
       const old=card.frontMaterial.map||card.backMaterial.map;card.frontMaterial.map=texture;card.backMaterial.map=texture;card.frontMaterial.needsUpdate=true;card.backMaterial.needsUpdate=true;if(old)old.dispose();render();
-      applyCardTextureTransform(card);resolve();
+      applyCardTextureTransform(card);updateDecorativeTransforms();resolve();
     };
     if(previewCanvas){
       const texture=new THREE.CanvasTexture(previewCanvas);texture.needsUpdate=true;applyTexture(texture);return;
@@ -730,12 +955,12 @@ function setCardPhoto(index,sourceOverride=null){
     new THREE.TextureLoader().load(source,applyTexture,undefined,error=>{notify(`无法读取图片：${photo.name||'文件'}`);reject(error||new Error('图片读取失败'))});
   });
 }
-function updateTransforms(fitWall=true){
+function updateTransforms(fitWall=true,preserveCamera=false){
   if(isRingMode())syncRingControls();else if(isGridMode())syncGridControls();else syncCurvedControls();
   // Layout controls can change the wall's bounds (especially the ring gap),
   // so recalculate the camera fit. Camera-only gestures keep their current
   // distance and only refresh the orbit orientation.
-  if(fitWall)fitCamera(true);else updateCameraOrbit();
+  if((fitWall||isOrthographicCamera)&&!preserveCamera)fitCamera(true);else updateCameraOrbit();
   const count=state.count;
   const ringRadius=isRingMode()?ringLayoutRadius():state.radius;
   const tiltX=THREE.MathUtils.degToRad(tiltValueFor(state,'x'));
@@ -772,6 +997,9 @@ function updateTransforms(fitWall=true){
     card.cornerUniform.value=state.corner/DESIGN_SCALE;
   }
   wallGroup.updateMatrixWorld(true);
+  decorativeGroup.quaternion.copy(wallGroup.quaternion);
+  updateDecorativeTransforms();
+  decorativeGroup.updateMatrixWorld(true);
   render();
 }
 function syncRingControls(){
@@ -810,18 +1038,25 @@ function syncCurvedControls(){
   state.stagger=THREE.MathUtils.clamp(Math.round(Number.isFinite(staggerValue)?staggerValue:50),0,100);
   if(state.stagger>0&&state.stagger<=5)state.stagger=0;
   state.staggerDirection=state.staggerDirection==='vertical'?'vertical':'horizontal';
-  state.curveBend=THREE.MathUtils.clamp(state.curveBend,-180,180);
+  state.curveBend=THREE.MathUtils.clamp(state.curveBend,-360,360);
+  state.decorativeWallEnabled=state.decorativeWallEnabled!==false;
+  state.decorativeWallOpacity=THREE.MathUtils.clamp(Number.isFinite(Number(state.decorativeWallOpacity))?Number(state.decorativeWallOpacity):30,0,100);
+  state.decorativeWallProgress=THREE.MathUtils.clamp(Number.isFinite(Number(state.decorativeWallProgress))?Number(state.decorativeWallProgress):0,0,100);
   $('#rowCountInput').max=maxRows;
   $('#columnCountInput').max=Math.max(3,count);
   $('#rowCountInput').value=state.rows;$('#rowCountOutput').textContent=state.rows;
   $('#columnCountInput').value=state.columns;$('#columnCountOutput').textContent=state.columns;
   $('#staggerInput').value=state.stagger;$('#staggerOutput').textContent=`${state.stagger}%`;
   const spacingValue=state.spacingMode==='row'?state.rowGap:state.columnGap;
-  const spacingLabel=state.spacingMode==='row'?'行间距':state.spacingMode==='column'?'列间距':'间距';
+  const spacingLabel=currentLanguage==='en'?(state.spacingMode==='row'?'Rows':state.spacingMode==='column'?'Columns':'Gap'):(state.spacingMode==='row'?'行间距':state.spacingMode==='column'?'列间距':'间距');
   $('#curvedSpacingInput').value=spacingValue;$('#curvedSpacingLabel').firstChild.textContent=spacingLabel+' ';$('#curvedSpacingOutput').textContent=`${spacingValue} px`;
   document.querySelectorAll('[data-curved-spacing-mode]').forEach(button=>{const active=button.dataset.curvedSpacingMode===state.spacingMode;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
   $('#curveBendInput').value=state.curveBend;$('#curveBendOutput').textContent=`${state.curveBend}°`;
   document.querySelectorAll('[data-curved-stagger-direction]').forEach(button=>{const active=button.dataset.curvedStaggerDirection===state.staggerDirection;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
+  const opacityInput=$('#decorativeWallOpacityInput'),progressInput=$('#decorativeWallProgressInput');
+  if(opacityInput){opacityInput.value=state.decorativeWallOpacity;$('#decorativeWallOpacityOutput').textContent=`${state.decorativeWallOpacity}%`}
+  if(progressInput){progressInput.value=state.decorativeWallProgress;$('#decorativeWallProgressOutput').textContent=`${state.decorativeWallProgress}%`}
+  document.querySelectorAll('[data-decorative-wall]').forEach(button=>{const active=(button.dataset.decorativeWall==='on')===state.decorativeWallEnabled;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
 }
 function syncGridControls(){
   const count=Math.max(3,Math.min(72,Math.round(Number(state.count)||24)));
@@ -845,7 +1080,7 @@ function syncGridControls(){
   $('#gridRowCountInput').value=state.rows;$('#gridRowCountOutput').textContent=state.rows;
   $('#gridColumnCountInput').value=state.columns;$('#gridColumnCountOutput').textContent=state.columns;
   const spacingValue=state.spacingMode==='row'?state.rowGap:state.columnGap;
-  const spacingLabel=state.spacingMode==='row'?'行间距':state.spacingMode==='column'?'列间距':'间距';
+  const spacingLabel=currentLanguage==='en'?(state.spacingMode==='row'?'Rows':state.spacingMode==='column'?'Columns':'Gap'):(state.spacingMode==='row'?'行间距':state.spacingMode==='column'?'列间距':'间距');
   $('#gridGapInput').value=spacingValue;$('#gridSpacingLabel').firstChild.textContent=spacingLabel+' ';$('#gridGapOutput').textContent=`${spacingValue} px`;
   document.querySelectorAll('[data-grid-spacing-mode]').forEach(button=>{const active=button.dataset.gridSpacingMode===state.spacingMode;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
   $('#gridStaggerInput').value=state.gridStagger;$('#gridStaggerOutput').textContent=`${state.gridStagger}%`;
@@ -889,13 +1124,15 @@ function fillSampleSlots(from,to){
 }
 function updateSlots(){
   $('#slotCountOutput').textContent=state.count;$('#slotCountLabel').textContent=`${state.count} 个槽位`;
+  const clearImagesButton=$('#clearImagesButton');
+  if(clearImagesButton)clearImagesButton.disabled=!state.photos.some(photo=>photo&&!photo.sample);
   const countFor=mode=>mode===state.mode?state.count:(state.photosByMode?.[mode]?.length||0);
   const ringPresetCount=$('#ringPresetCount'),curvedPresetCount=$('#curvedPresetCount'),curvedHorizontalPresetCount=$('#curvedHorizontalPresetCount'),gridPresetCount=$('#gridPresetCount');
   if(ringPresetCount)ringPresetCount.textContent=countFor('ring');
   if(curvedPresetCount)curvedPresetCount.textContent=countFor('curved');
   if(curvedHorizontalPresetCount)curvedHorizontalPresetCount.textContent=countFor('curvedHorizontal');
   if(gridPresetCount)gridPresetCount.textContent=countFor('grid');
-  if(slotsList.children.length!==state.count)slotsList.innerHTML=state.photos.map((_,i)=>`<div class="slot-row" draggable="true" data-slot="${i}"><span class="drag-grip">⠿</span><button class="slot-thumb" data-pick="${i}" title="点击添加或替换图片"><span class="plus-mark">＋</span></button><button class="slot-copy" data-select="${i}"><b>槽位 ${i+1}</b><small>点击选择图片</small></button><button class="slot-adjust" data-adjust="${i}" title="调整图片">⌗</button><button class="slot-replace" data-pick="${i}" title="替换图片">↻</button></div>`).join('');
+  if(slotsList.children.length!==state.count)slotsList.innerHTML=state.photos.map((_,i)=>`<div class="slot-row" draggable="true" data-slot="${i}"><span class="drag-grip">⠿</span><button class="slot-thumb" data-pick="${i}" title="点击添加或替换图片"><span class="plus-mark">＋</span></button><button class="slot-copy" data-select="${i}"><b>槽位 ${i+1}</b><small>点击选择图片</small></button><button class="slot-adjust" data-adjust="${i}" title="调整图片"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M526.41 117.029v58.514a7.314 7.314 0 0 1-7.315 7.314H219.429a36.571 36.571 0 0 0-35.987 29.989l-0.585 6.583V804.57a36.571 36.571 0 0 0 29.989 35.987l6.583 0.585H804.57a36.571 36.571 0 0 0 35.987-29.989l0.585-6.583v-317.44a7.314 7.314 0 0 1 7.314-7.314h58.514a7.314 7.314 0 0 1 7.315 7.314v317.44a109.714 109.714 0 0 1-99.182 109.203l-10.533 0.512H219.43a109.714 109.714 0 0 1-109.203-99.182l-0.512-10.533V219.43a109.714 109.714 0 0 1 99.182-109.203l10.533-0.512h299.666a7.314 7.314 0 0 1 7.314 7.315z m307.345 31.817l41.4 41.399a7.314 7.314 0 0 1 0 10.313L419.985 655.726a7.314 7.314 0 0 1-10.313 0l-41.399-41.4a7.314 7.314 0 0 1 0-10.312l455.168-455.168a7.314 7.314 0 0 1 10.313 0z" fill="currentColor"></path></svg></button><button class="slot-replace" data-pick="${i}" title="替换图片">↻</button></div>`).join('');
   [...slotsList.children].forEach((row,i)=>{
     const photo=state.photos[i],thumb=row.querySelector('.slot-thumb'),existing=thumb.querySelector('img');
     row.dataset.slot=i;row.classList.toggle('selected',i===state.selected);
@@ -910,7 +1147,8 @@ function updateSlots(){
 function syncPhotoAdjustControls(){
   const photo=state.photos[state.selected]||{};
   $('#selectedPhotoLabel').textContent=`槽位 ${state.selected+1}${photo.name?` · ${photo.name}`:''}`;
-  const scale=Math.round(photoAdjustValue(photo,'imageScale',1)*100),offsetX=Math.round(photoAdjustValue(photo,'imageOffsetX',0)),offsetY=Math.round(photoAdjustValue(photo,'imageOffsetY',0));
+  const imageOffsetBaseline=state.mode==='isometric'&&photo.sample?58:0;
+  const scale=Math.round(photoAdjustValue(photo,'imageScale',1)*100),offsetX=Math.round(photoAdjustValue(photo,'imageOffsetX',0)),offsetY=Math.round(photoAdjustValue(photo,'imageOffsetY',0)-imageOffsetBaseline);
   $('#photoScaleInput').value=scale;$('#photoScaleOutput').textContent=`${scale}%`;
   $('#photoOffsetXInput').value=offsetX;$('#photoOffsetXOutput').textContent=`${offsetX}%`;
   $('#photoOffsetYInput').value=offsetY;$('#photoOffsetYOutput').textContent=`${offsetY}%`;
@@ -979,11 +1217,12 @@ function applyModeSettings(mode){
   if(!Number.isFinite(Number(settings.tiltX)))state.tiltX=Number.isFinite(legacyTilt)?legacyTilt:0;
   if(!Number.isFinite(Number(settings.tiltY)))state.tiltY=0;
   if(!Number.isFinite(Number(settings.tiltZ)))state.tiltZ=0;
-  state.tiltAxis=state.tiltAxis==='y'||state.tiltAxis==='z'?state.tiltAxis:(isGridMode(mode)?'z':'x');
+  state.tiltAxis=['x','y','z'].includes(state.tiltAxis)?state.tiltAxis:(isGridMode(mode)?'z':'x');
   state.wallTilt=tiltValueFor(state,state.tiltAxis);
   if(Array.isArray(settings.cameraTarget))cameraTarget.fromArray(settings.cameraTarget);
   else cameraTarget.set((settings.viewOffsetX||0)/DESIGN_SCALE,(settings.viewOffsetY||0)/DESIGN_SCALE,0);
-  camera.fov=state.fov;
+  setCameraProjection(isIsometricMode(mode)||Number(state.fov)<=0);
+  if(!isOrthographicCamera)camera.fov=state.fov;
 }
 function syncViewControls(){
   state.tiltAxis=state.tiltAxis==='y'||state.tiltAxis==='z'?state.tiltAxis:'x';
@@ -996,8 +1235,9 @@ function syncViewControls(){
   $('#cameraRotationLabel').firstChild.textContent=`相机${state.cameraAxis.toUpperCase()}轴旋转 `;
   $('#cameraRotationInput').value=cameraRotation;$('#cameraRotationOutput').textContent=`${Math.round(cameraRotation)}°`;
   updateTiltGizmoStyle();
-  state.fov=THREE.MathUtils.clamp(Number(state.fov)||38,5,120);camera.fov=state.fov;
+  state.fov=THREE.MathUtils.clamp(Number.isFinite(Number(state.fov))?Number(state.fov):38,0,120);if(!isOrthographicCamera)camera.fov=state.fov;
   $('#fovInput').value=state.fov;$('#fovOutput').textContent=`${state.fov}°`;
+  state.zoom=THREE.MathUtils.clamp(Number(state.zoom)||100,40,800);
   $('#viewZoomInput').value=state.zoom;$('#viewZoomOutput').textContent=`${state.zoom}%`;$('#zoomLabel').textContent=`${state.zoom}%`;
   syncPanControls();
 }
@@ -1042,18 +1282,26 @@ function syncCardOpacity(){
 function updateModeUI(){
   const curved=isCurvedMode();
   const grid=isGridMode();
+  const isometricMode=isIsometricMode();
   const ring=isRingMode();
   $('#ringPreset').classList.toggle('selected',state.mode==='ring');
   $('#bloomPreset').classList.toggle('selected',state.mode==='bloom');
   $('#curvedPreset').classList.toggle('selected',state.mode==='curved');
   $('#curvedHorizontalPreset').classList.toggle('selected',state.mode==='curvedHorizontal');
-  $('#gridPreset').classList.toggle('selected',grid);
+  $('#singlePreset').classList.toggle('selected',state.mode==='single');
+  state.imageDirection=['up','right','down','left'].includes(state.imageDirection)?state.imageDirection:'up';
+  document.querySelectorAll('[data-image-direction]').forEach(button=>{const active=button.dataset.imageDirection===state.imageDirection;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
+  $('#gridPreset').classList.toggle('selected',state.mode==='grid');
+  $('#isometricPreset').classList.toggle('selected',isometricMode);
   // Grid walls use the same camera controls as the other walls. Their
   // default view remains isometric, but the user can orbit and pan it.
   frame.classList.toggle('grid-locked',false);
   $('#ringLayoutSettings').classList.toggle('mode-hidden',!ring);
   $('#ringSpacingControl').classList.toggle('mode-hidden',state.mode==='bloom');
   $('#curvedLayoutSettings').classList.toggle('mode-hidden',!curved);
+  $('.single-fixed-edge-control')?.classList.toggle('mode-hidden',state.mode!=='single');
+  $('#decorativeWallControls')?.classList.toggle('mode-hidden',state.mode!=='single');
+  document.querySelectorAll('[data-single-fixed-edge]').forEach(button=>{const active=button.dataset.singleFixedEdge===state.fixedEdge;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
   $('#gridLayoutSettings').classList.toggle('mode-hidden',!grid);
   $('#photoOpacityControl').classList.toggle('mode-hidden',!ring);
   $('#contentRotationControl').classList.toggle('mode-hidden',curved||grid);
@@ -1062,19 +1310,25 @@ function updateModeUI(){
   $('#tiltAxisControl').classList.toggle('mode-hidden',false);
   $('#cameraAxisControl').classList.toggle('mode-hidden',false);
   $('#cameraRotationControl').classList.toggle('mode-hidden',false);
-  $('#fovInput').closest('.range-control').classList.toggle('mode-hidden',false);
+  $('#fovInput').closest('.range-control').classList.toggle('mode-hidden',isometricMode);
   $('#viewOffsetXInput').closest('.range-control').classList.toggle('mode-hidden',false);
   $('#viewOffsetYInput').closest('.range-control').classList.toggle('mode-hidden',false);
   $('#viewZoomInput').closest('.range-control').classList.toggle('mode-hidden',false);
   $('#settingsTitle').textContent='设置';
-  const modeLabel=state.mode==='curvedHorizontal'?'左右弧形':state.mode==='curved'?'上下弧形':state.mode==='bloom'?'环形绽放':grid?'网格':'环绕弯曲';
-  $('#projectName').firstChild.textContent=`${state.projectName||'未命名项目'} · ${modeLabel} `;
+  const modeLabel=currentLanguage==='en'?(state.mode==='curvedHorizontal'?'Horizontal curve wall':state.mode==='curved'?'Vertical curve wall':state.mode==='bloom'?'Bloom ring':state.mode==='single'?'Single-side bend':state.mode==='isometric'?'Isometric 45°':state.mode==='grid'?'Tilted grid wall':'Ring curve'):(state.mode==='curvedHorizontal'?'左右弧形':state.mode==='curved'?'上下弧形':state.mode==='bloom'?'环形绽放':state.mode==='single'?'单侧弯曲':state.mode==='isometric'?'等距45度':state.mode==='grid'?'倾斜网格墙':'环绕弯曲');
+  const projectTitle=state.projectName||'未命名项目';
+  const displayProjectTitle=currentLanguage==='en'?(projectTitle==='默认项目'?'Default project':projectTitle==='未命名项目'?'Untitled project':projectTitle):projectTitle;
+  $('#projectName').firstChild.textContent=`${displayProjectTitle} · ${modeLabel} `;
   const previewTip=$('#previewTip');
   if(previewTip)previewTip.innerHTML='<kbd>左键拖动</kbd> 360度查看 · <kbd>Alt + 左键</kbd> 平移视角 · <kbd>滚轮</kbd> 缩放照片 <span>·</span> <kbd>双击</kbd> 选中并替换';
   $('#slotMinus').disabled=false;$('#slotPlus').disabled=false;
   syncCardSizeControls();syncViewControls();syncVisualControls();
   if(curved){normalizeCurvedGrid(state.rows,state.columns,'rows');syncCurvedControls();fitCamera(true)}else if(grid){normalizeCurvedGrid(state.rows,state.columns,'rows');syncGridControls();fitCamera(true)}else{syncRingControls();fitCamera(true)}
+  // Grid controls can normalize axis values; refresh the shared tilt readout
+  // after that normalization so the selected Z value is visible immediately.
+  syncViewControls();
   updateTransforms();
+  if(typeof LANGUAGE_TEXT!=='undefined'&&currentLanguage==='en') applyLanguage('en');
 }
 async function setMode(mode){
   if(mode===state.mode)return;
@@ -1094,7 +1348,10 @@ async function setMode(mode){
   if(isGridMode(mode)){normalizeCurvedGrid(state.rows,state.columns,'rows');syncGridControls()}
   updateSlots();await syncPhotoSlots();
   if(job!==modeSwitchJob)return;
-  updateModeUI();stage.classList.remove('project-loading');render();scheduleProjectSave();
+  // Keep the stage hidden until the new mode has completed its first layout
+  // and render. Revealing it synchronously can briefly show the previous
+  // mode's camera values and make the controls appear to have been mixed.
+  updateModeUI();resize();render();stage.classList.remove('project-loading');scheduleProjectSave();
 }
 const PRESETS_STORAGE_KEY='photo-wall-presets-v1';
 const PROJECTS_STORAGE_KEY='photo-wall-projects-v1';
@@ -1268,6 +1525,7 @@ function ensureProjectDefaults(){
       const modePhotos=photoSets[mode];
       const target=(mode!=='ring'&&needsCurvedDefault)?DEFAULT_PHOTO_COUNTS[mode]:mode==='ring'?count:DEFAULT_PHOTO_COUNTS[mode];
       if(!modePhotos.length){photoSets[mode]=fillPhotoRefs(photos,target);changed=true}
+      else if(mode==='single'&&needsCurvedDefault&&modePhotos.length>target&&modePhotos.every(photo=>photo?.sample||String(photo?.src||'').includes('/photos/sample-'))){photoSets[mode]=modePhotos.slice(0,target);changed=true}
       else if(mode!=='ring'&&needsCurvedDefault&&modePhotos.length<target){photoSets[mode]=fillPhotoRefs(modePhotos,target);changed=true}
       else if(modePhotos.length<3){photoSets[mode]=fillPhotoRefs(modePhotos,target);changed=true}
     });
@@ -1337,14 +1595,15 @@ function captureProjectSettings(){
   saveModeSettings(state.mode);
   return {
     mode:state.mode,width:state.width,height:state.height,resolutionPreset:state.resolutionPreset||DEFAULT_RESOLUTION_PRESET,ratioWidth:state.ratioWidth,ratioHeight:state.ratioHeight,cardSizeVersion:1,cardWidth:state.cardWidth,cardHeight:state.cardHeight,modeSettingsVersion:MODE_SETTINGS_VERSION,
-    background:`#${scene.background?.getHexString?.()||'101014'}`,
-    modeSettings:{ring:cloneModeSettings(modeSettings.ring),bloom:cloneModeSettings(modeSettings.bloom),curved:cloneModeSettings(modeSettings.curved),curvedHorizontal:cloneModeSettings(modeSettings.curvedHorizontal),grid:cloneModeSettings(modeSettings.grid)},
+    background:backgroundColor,backgroundImageAssetId:backgroundImage?.assetId||null,
+    modeSettings:{ring:cloneModeSettings(modeSettings.ring),bloom:cloneModeSettings(modeSettings.bloom),curved:cloneModeSettings(modeSettings.curved),curvedHorizontal:cloneModeSettings(modeSettings.curvedHorizontal),single:cloneModeSettings(modeSettings.single),grid:cloneModeSettings(modeSettings.grid),isometric:cloneModeSettings(modeSettings.isometric)},
   };
 }
 function defaultProjectSettings(){
-  const ring=createModeSettings('ring'),curved=createModeSettings('curved'),curvedHorizontal=createModeSettings('curvedHorizontal'),grid=createModeSettings('grid');
+  const ring=createModeSettings('ring'),curved=createModeSettings('curved'),curvedHorizontal=createModeSettings('curvedHorizontal'),single=createModeSettings('single'),grid=createModeSettings('grid');
   const bloom=createModeSettings('bloom');
-  return {mode:'ring',width:1920,height:1080,resolutionPreset:DEFAULT_RESOLUTION_PRESET,ratioWidth:16,ratioHeight:9,cardWidth:DEFAULT_CARD_WIDTH,cardHeight:DEFAULT_CARD_HEIGHT,background:'#101014',modeSettingsVersion:MODE_SETTINGS_VERSION,modeSettings:{ring:cloneModeSettings(ring),bloom:cloneModeSettings(bloom),curved:cloneModeSettings(curved),curvedHorizontal:cloneModeSettings(curvedHorizontal),grid:cloneModeSettings(grid)}};
+  const isometric=createModeSettings('isometric');
+  return {mode:'ring',width:1920,height:1080,resolutionPreset:DEFAULT_RESOLUTION_PRESET,ratioWidth:16,ratioHeight:9,cardWidth:DEFAULT_CARD_WIDTH,cardHeight:DEFAULT_CARD_HEIGHT,background:'#101014',modeSettingsVersion:MODE_SETTINGS_VERSION,modeSettings:{ring:cloneModeSettings(ring),bloom:cloneModeSettings(bloom),curved:cloneModeSettings(curved),curvedHorizontal:cloneModeSettings(curvedHorizontal),single:cloneModeSettings(single),grid:cloneModeSettings(grid),isometric:cloneModeSettings(isometric)}};
 }
 function applyProjectSettings(settings){
   const defaults=defaultProjectSettings(),source=settings||defaults;
@@ -1355,12 +1614,15 @@ function applyProjectSettings(settings){
   const hasCardSize=source.cardSizeVersion===1&&Number.isFinite(Number(source.cardWidth))&&Number.isFinite(Number(source.cardHeight));
   state.cardWidth=hasCardSize?THREE.MathUtils.clamp(Number(source.cardWidth),40,600):defaults.cardWidth;
   state.cardHeight=hasCardSize?THREE.MathUtils.clamp(Number(source.cardHeight),40,800):defaults.cardHeight;
-  if(typeof source.background==='string')scene.background.set(source.background);
-  const background=`#${scene.background?.getHexString?.()||'101014'}`;if($('#bgColorInput')){$('#bgColorInput').value=background;$('.color-code').textContent=background.toUpperCase();$('.color-swatch').style.background=background}
+  if(typeof source.background==='string')setBackgroundColor(source.background);else setBackgroundColor(defaults.background);
+  disposeBackgroundImage();
   const saved=source.modeSettings||{};
   PHOTO_MODES.forEach(mode=>{
     const base=createModeSettings(mode),savedSettings=saved[mode]||saved[mode==='curvedHorizontal'?'curved':mode]||{};
     const merged={...base,...savedSettings,cameraTarget:Array.isArray(savedSettings.cameraTarget)?[...savedSettings.cameraTarget]:[...base.cameraTarget]};
+    if(mode==='single'&&savedSettings.singleDefaultsVersion!==base.singleDefaultsVersion){
+      Object.assign(merged,base,{cameraTarget:[...base.cameraTarget]});
+    }
     if(mode==='grid'&&(source.modeSettingsVersion||0)<17){
       const oldGridDefaults={rows:3,columns:8,columnGap:28,gridStagger:0,gridStaggerDirection:'horizontal',corner:20,zoom:100,tiltZ:0,gridTiltZ:0};
       const untouched=Object.entries(oldGridDefaults).every(([key,value])=>{
@@ -1407,7 +1669,30 @@ function applyProjectSettings(settings){
     ['radius','wallTilt','tiltAxis','tiltX','tiltY','tiltZ'].forEach(key=>{modeSettings.bloom[key]=bloomDefaults[key]});
   }
   if((source.modeSettingsVersion||0)<24)modeSettings.bloom.tiltX=createModeSettings('bloom').tiltX;
-  state.mode=source.mode==='curvedHorizontal'?'curvedHorizontal':source.mode==='curved'?'curved':source.mode==='grid'?'grid':source.mode==='bloom'?'bloom':'ring';applyModeSettings(state.mode);
+  const savedBloom=source.modeSettings?.bloom||{};
+  if(savedBloom.bloomDefaultsVersion!==BLOOM_DEFAULTS_VERSION){
+    const bloomDefaults=createModeSettings('bloom');
+    ['fov','viewOffsetX','viewOffsetY','cameraTarget'].forEach(key=>{modeSettings.bloom[key]=Array.isArray(bloomDefaults[key])?[...bloomDefaults[key]]:bloomDefaults[key]});
+    modeSettings.bloom.bloomDefaultsVersion=BLOOM_DEFAULTS_VERSION;
+  }
+  // The isometric wall is a new preset. Give projects created before it was
+  // introduced its complete orthographic starting composition.
+  const savedIso=source.modeSettings?.isometric||{};
+  // Existing projects keep their per-effect settings in local storage. When
+  // the isometric defaults change, migrate that effect as a whole instead of
+  // allowing an older camera/tilt combination to be mixed with the new
+  // layout defaults.
+  const needsIsoDefaults=savedIso.isometricDefaultsVersion!==ISOMETRIC_DEFAULTS_VERSION;
+  const legacyIsoLayout=Number(savedIso.rows)===4&&Number(savedIso.columns)===6;
+  if((source.modeSettingsVersion||0)<31||needsIsoDefaults||legacyIsoLayout)modeSettings.isometric=createModeSettings('isometric');
+  // The single-side bend defaults include a calibrated camera composition.
+  // Refresh that preset once for projects saved before these defaults existed.
+  if((source.modeSettingsVersion||0)<36)modeSettings.single=createModeSettings('single');
+  // Roll back the temporary camera-X default migration while preserving the
+  // original bloom default for projects saved during that migration.
+  if((source.modeSettingsVersion||0)===30&&Number(modeSettings.bloom.tilt)===0)modeSettings.bloom.tilt=17;
+  state.mode=source.mode==='curvedHorizontal'?'curvedHorizontal':source.mode==='single'?'single':source.mode==='curved'?'curved':source.mode==='isometric'?'isometric':source.mode==='grid'?'grid':source.mode==='bloom'?'bloom':'ring';applyModeSettings(state.mode);
+  if(state.mode==='isometric'&&state.rows===4&&state.columns===6){modeSettings.isometric=createModeSettings('isometric');applyModeSettings('isometric')}
 }
 function saveCurrentProject(){
   if(!state.projectId||isLoadingProject)return;
@@ -1526,18 +1811,23 @@ function closeProjectMenu(){const menu=$('#projectMenu');menu?.classList.remove(
 async function initProjects(){
   projects=readProjects();
   migrateSharedProjectImages();
-  if(!projects.length){const now=Date.now();const photoRefs=state.photos.map(projectPhotoRef);const photoSets={ring:photoRefs,bloom:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.bloom),curved:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.curved),curvedHorizontal:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.curvedHorizontal),grid:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.grid)};projects=[{id:makeId(),name:'默认项目',createdAt:now,updatedAt:now,photos:photoRefs,photosByMode:photoSets,photoSetsVersion:PHOTO_SETS_VERSION,settings:captureProjectSettings()}];writeProjects()}
+  if(!projects.length){const now=Date.now();const photoRefs=state.photos.map(projectPhotoRef);const photoSets={ring:photoRefs,bloom:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.bloom),curved:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.curved),curvedHorizontal:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.curvedHorizontal),single:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.single),grid:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.grid),isometric:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.isometric)};projects=[{id:makeId(),name:'默认项目',createdAt:now,updatedAt:now,photos:photoRefs,photosByMode:photoSets,photoSetsVersion:PHOTO_SETS_VERSION,settings:captureProjectSettings()}];writeProjects()}
   ensureProjectDefaults();
   let renamedDefault=false;
   projects.forEach(project=>{if(project.name==='示例项目'||project.name==='默认'||project.name==='隔离验证'){project.name='默认项目';project.updatedAt=Date.now();renamedDefault=true}});
   if(renamedDefault)writeProjects();
   const savedId=localStorage.getItem(CURRENT_PROJECT_KEY);const preferred=projects.find(item=>item.name==='默认项目');const first=preferred||projects.find(item=>item.id===savedId)||projects[0];state.projectId=first.id;state.projectName=first.name||'默认项目';localStorage.setItem(CURRENT_PROJECT_KEY,first.id);renderProjectList();
-  const photoSets=projectPhotoSets(first);isLoadingProject=true;applyProjectSettings(first.settings||defaultProjectSettings());
-  const desired=Math.max(3,Math.min(72,(photoSets[state.mode]||[]).length||first.photos?.length||state.count||12));
-  PHOTO_MODES.forEach(mode=>{if(!photoSets[mode]?.length)photoSets[mode]=sampleProjectPhotos(desired).map(projectPhotoRef)});
+  const photoSets=projectPhotoSets(first);isLoadingProject=true;applyProjectSettings(first.settings||defaultProjectSettings());await hydrateBackgroundImage(first.settings?.backgroundImageAssetId);
+  const desired=state.mode==='isometric'?DEFAULT_PHOTO_COUNTS.isometric:Math.max(3,Math.min(72,(photoSets[state.mode]||[]).length||first.photos?.length||state.count||12));
+  PHOTO_MODES.forEach(mode=>{if(!photoSets[mode]?.length||(mode==='isometric'&&photoSets[mode].length<DEFAULT_PHOTO_COUNTS.isometric))photoSets[mode]=sampleProjectPhotos(mode==='isometric'?DEFAULT_PHOTO_COUNTS.isometric:desired).map(projectPhotoRef)});
   state.photosByMode={};
   for(const mode of PHOTO_MODES){const refs=photoSets[mode];state.photosByMode[mode]=await hydrateProjectPhotos(refs,Math.max(3,Math.min(72,refs.length||desired)))}
-  loadPhotoSet(state.mode,desired);state.count=state.photos.length;cards.length=state.count;state.selected=0;updateDimensionUI();updateSlots();await syncPhotoSlots();isLoadingProject=false;stage.classList.remove('project-loading');updateModeUI();renderProjectList();render();
+  loadPhotoSet(state.mode,desired);state.count=state.photos.length;
+  // Applying settings before hydration temporarily uses the initial 12-card
+  // count. Restore the selected mode once its photo set is loaded so grid
+  // rows/columns are normalized against the real count (24 for isometric).
+  applyModeSettings(state.mode);
+  cards.length=state.count;state.selected=0;updateDimensionUI();updateSlots();await syncPhotoSlots();updateModeUI();resize();renderProjectList();render();isLoadingProject=false;stage.classList.remove('project-loading');
 }
 async function switchProject(projectId){
   const project=projects.find(item=>item.id===projectId);if(!project||project.id===state.projectId){closeProjectMenu();return}
@@ -1549,14 +1839,14 @@ async function switchProject(projectId){
     if(result.changed){project.photos=result.photos;project.photosByMode?.ring&&(project.photosByMode.ring=result.photos);project.thumbnail=null;project.updatedAt=Date.now();writeProjects()}
   }
   clearTimeout(projectSaveTimer);projectSaveTimer=null;saveCurrentProject();await Promise.allSettled([...pendingAssetWrites.values()]);revokePhotoUrls();cards.forEach(card=>{if(card)releaseCard(card)});cards.length=0;isLoadingProject=true;state.projectId=project.id;state.projectName=project.name||'未命名项目';applyProjectSettings(project.settings||defaultProjectSettings());
-  const photoSets=projectPhotoSets(project);const desired=Math.max(3,Math.min(72,(photoSets[state.mode]||[]).length||project.photos?.length||state.count||12));
-  PHOTO_MODES.forEach(mode=>{if(!photoSets[mode]?.length)photoSets[mode]=sampleProjectPhotos(desired).map(projectPhotoRef)});
+  await hydrateBackgroundImage(project.settings?.backgroundImageAssetId);const photoSets=projectPhotoSets(project);const desired=state.mode==='isometric'?DEFAULT_PHOTO_COUNTS.isometric:Math.max(3,Math.min(72,(photoSets[state.mode]||[]).length||project.photos?.length||state.count||12));
+  PHOTO_MODES.forEach(mode=>{if(!photoSets[mode]?.length||(mode==='isometric'&&photoSets[mode].length<DEFAULT_PHOTO_COUNTS.isometric))photoSets[mode]=sampleProjectPhotos(mode==='isometric'?DEFAULT_PHOTO_COUNTS.isometric:desired).map(projectPhotoRef)});
   state.photosByMode={};
   for(const mode of PHOTO_MODES){const refs=photoSets[mode];state.photosByMode[mode]=await hydrateProjectPhotos(refs,Math.max(3,Math.min(72,refs.length||desired)))}
-  loadPhotoSet(state.mode,desired);state.count=state.photos.length;cards.length=state.count;localStorage.setItem(CURRENT_PROJECT_KEY,state.projectId);state.selected=0;updateDimensionUI();updateSlots();await syncPhotoSlots();isLoadingProject=false;stage.classList.remove('project-loading');updateModeUI();renderProjectList();render();closeProjectMenu();notify(`已切换项目：${state.projectName}`)
+  loadPhotoSet(state.mode,desired);state.count=state.photos.length;applyModeSettings(state.mode);cards.length=state.count;localStorage.setItem(CURRENT_PROJECT_KEY,state.projectId);state.selected=0;updateDimensionUI();updateSlots();await syncPhotoSlots();updateModeUI();resize();renderProjectList();render();isLoadingProject=false;stage.classList.remove('project-loading');closeProjectMenu();notify(`已切换项目：${state.projectName}`)
 }
 function createProject(name){
-  saveCurrentProject();const trimmed=name.trim();const now=Date.now();const photoRefs=sampleProjectPhotos(state.count).map(projectPhotoRef);const photoSets={ring:photoRefs,bloom:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.bloom),curved:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.curved),curvedHorizontal:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.curvedHorizontal),grid:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.grid)};const project={id:makeId(),name:trimmed||`未命名项目 ${projects.length+1}`,createdAt:now,updatedAt:now,photos:photoRefs,photosByMode:photoSets,photoSetsVersion:PHOTO_SETS_VERSION,settings:captureProjectSettings()};projects.unshift(project);writeProjects();switchProject(project.id)
+  saveCurrentProject();const trimmed=name.trim();const now=Date.now();const photoRefs=sampleProjectPhotos(state.count).map(projectPhotoRef);const photoSets={ring:photoRefs,bloom:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.bloom),curved:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.curved),curvedHorizontal:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.curvedHorizontal),single:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.single),grid:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.grid),isometric:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.isometric)};const project={id:makeId(),name:trimmed||`未命名项目 ${projects.length+1}`,createdAt:now,updatedAt:now,photos:photoRefs,photosByMode:photoSets,photoSetsVersion:PHOTO_SETS_VERSION,settings:captureProjectSettings()};projects.unshift(project);writeProjects();switchProject(project.id)
 }
 async function resetProject(projectId){
   const project=projects.find(item=>item.id===projectId);if(!project)return;
@@ -1564,10 +1854,10 @@ async function resetProject(projectId){
   const otherAssetIds=new Set(projects.filter(item=>item.id!==projectId).flatMap(item=>PHOTO_MODES.flatMap(mode=>(projectPhotoSets(item)[mode]||[]).map(photo=>photo?.assetId).filter(Boolean))));
   await Promise.allSettled(assetIds.map(id=>pendingAssetWrites.get(id)).filter(Boolean));
   await deletePhotoAssets(assetIds.filter(id=>!otherAssetIds.has(id))).catch(()=>notify('项目已重置，但部分图片缓存清理失败'));
-  const resetRefs=sampleProjectPhotos(12).map(projectPhotoRef),resetSets={ring:resetRefs,bloom:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.bloom),curved:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.curved),curvedHorizontal:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.curvedHorizontal),grid:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.grid)};project.settings=defaults;project.photos=resetRefs;project.photosByMode=resetSets;project.photoSetsVersion=PHOTO_SETS_VERSION;project.thumbnail=samplePhoto(0);project.updatedAt=Date.now();writeProjects();
+  const resetRefs=sampleProjectPhotos(12).map(projectPhotoRef),resetSets={ring:resetRefs,bloom:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.bloom),curved:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.curved),curvedHorizontal:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.curvedHorizontal),single:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.single),grid:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.grid),isometric:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.isometric)};project.settings=defaults;project.photos=resetRefs;project.photosByMode=resetSets;project.photoSetsVersion=PHOTO_SETS_VERSION;project.thumbnail=samplePhoto(0);project.updatedAt=Date.now();writeProjects();
   if(state.projectId===projectId){
     clearTimeout(projectSaveTimer);projectSaveTimer=null;revokePhotoUrls();cards.forEach(card=>{if(card)releaseCard(card)});cards.length=0;
-    isLoadingProject=true;applyProjectSettings(defaults);state.mode='ring';state.count=12;state.ringCount=12;state.photos=sampleProjectPhotos(12);state.photosByMode={ring:state.photos,bloom:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.bloom),curved:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.curved),curvedHorizontal:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.curvedHorizontal),grid:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.grid)};state.selected=0;isLoadingProject=false;
+    isLoadingProject=true;applyProjectSettings(defaults);state.mode='ring';state.count=12;state.ringCount=12;state.photos=sampleProjectPhotos(12);state.photosByMode={ring:state.photos,bloom:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.bloom),curved:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.curved),curvedHorizontal:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.curvedHorizontal),single:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.single),grid:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.grid),isometric:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.isometric)};state.selected=0;isLoadingProject=false;
     updateDimensionUI();updateSlots();syncPhotoSlots();updateModeUI();project.thumbnail=captureProjectThumbnail();writeProjects();
   }
   renderProjectList();notify(`已重置项目：${project.name||'未命名项目'}`);
@@ -1585,12 +1875,12 @@ async function deleteProject(projectId){
   projects=projects.filter(item=>item.id!==projectId);writeProjects();
   if(state.projectId===projectId){const next=projects.slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))[0];state.projectId=null;await switchProject(next.id)}else{renderProjectList();notify(`已删除项目：${project.name||'未命名项目'}`)}
 }
-initProjects().catch(()=>{isLoadingProject=false;stage.classList.remove('project-loading');notify('项目图片读取失败，请重新打开项目')});
+initProjects().then(()=>applyLanguage(localStorage.getItem(LANGUAGE_KEY)||'zh')).catch(()=>{isLoadingProject=false;stage.classList.remove('project-loading');notify('项目图片读取失败，请重新打开项目')});
 function readSavedPresets(){
   try{const value=JSON.parse(localStorage.getItem(PRESETS_STORAGE_KEY)||'[]');return Array.isArray(value)?value:[]}catch{return []}
 }
 function writeSavedPresets(presets){try{localStorage.setItem(PRESETS_STORAGE_KEY,JSON.stringify(presets));return true}catch{notify('浏览器存储空间不足，预设未保存');return false}}
-function presetModeLabel(mode){return mode==='grid'?'网格墙':mode==='bloom'?'环形绽放':mode==='curvedHorizontal'?'左右弧形墙':mode==='curved'?'上下弧形墙':'环绕弯曲'}
+function presetModeLabel(mode){return mode==='isometric'?'等距45度':mode==='grid'?'倾斜网格墙':mode==='bloom'?'环形绽放':mode==='single'?'单侧弯曲':mode==='curvedHorizontal'?'左右弧形墙':mode==='curved'?'上下弧形墙':'环绕弯曲'}
 function renderSavedPresets(){
   const list=$('#savedPresets');if(!list)return;list.replaceChildren();
   const presets=readSavedPresets();
@@ -1602,7 +1892,6 @@ function renderSavedPresets(){
     const meta=document.createElement('small');meta.textContent=presetModeLabel(preset.mode);
     copy.append(name,meta);
     const load=document.createElement('button');load.type='button';load.dataset.presetAction='load';load.textContent='恢复';
-    const reset=createProjectResetButton(project);
     const remove=document.createElement('button');remove.type='button';remove.dataset.presetAction='delete';remove.textContent='删除';
     row.append(copy,load,remove);list.appendChild(row);
   });
@@ -1612,25 +1901,25 @@ function createPreset(name){
   return {
     id:makeId(),
     name:name.trim(),createdAt:Date.now(),mode:state.mode,width:state.width,height:state.height,resolutionPreset:state.resolutionPreset,ratioWidth:state.ratioWidth,ratioHeight:state.ratioHeight,cardSizeVersion:1,cardWidth:state.cardWidth,cardHeight:state.cardHeight,
-    background:`#${scene.background?.getHexString?.()||'101014'}`,
+    background:backgroundColor,backgroundImageAssetId:backgroundImage?.assetId||null,
     settings:{...modeSettings[state.mode],cameraTarget:[...modeSettings[state.mode].cameraTarget]},
   };
 }
 function restorePreset(preset){
-  if(!preset||!['ring','curved','curvedHorizontal','grid'].includes(preset.mode)||!preset.settings)return;
+  if(!preset||!PHOTO_MODES.includes(preset.mode)||!preset.settings)return;
   const defaults=createModeSettings(preset.mode);
   modeSettings[preset.mode]={...defaults,...preset.settings,cameraTarget:Array.isArray(preset.settings.cameraTarget)?preset.settings.cameraTarget:[0,0,0]};
   if(Number.isFinite(preset.width)&&Number.isFinite(preset.height)){state.width=preset.width;state.height=preset.height;const ratio=Number.isFinite(preset.ratioWidth)&&Number.isFinite(preset.ratioHeight)?{width:preset.ratioWidth,height:preset.ratioHeight}:ratioPartsForDimensions(state.width,state.height);state.ratioWidth=clampRatioValue(ratio.width,16);state.ratioHeight=clampRatioValue(ratio.height,9)}
   if(preset.cardSizeVersion===1&&Number.isFinite(preset.cardWidth))state.cardWidth=THREE.MathUtils.clamp(preset.cardWidth,40,600);
   if(preset.cardSizeVersion===1&&Number.isFinite(preset.cardHeight))state.cardHeight=THREE.MathUtils.clamp(preset.cardHeight,40,800);
-  if(typeof preset.background==='string')scene.background.set(preset.background);
+  if(typeof preset.background==='string')setBackgroundColor(preset.background);
   if(preset.mode!==state.mode)setMode(preset.mode);else applyModeSettings(preset.mode);
   if(isCurvedMode(preset.mode)){normalizeCurvedGrid(state.rows,state.columns,'rows');syncCurvedControls()}
   if(isGridMode(preset.mode)){normalizeCurvedGrid(state.rows,state.columns,'rows');syncGridControls()}
   state.selected=0;updateDimensionUI();updateSlots();syncPhotoSlots();updateModeUI();notify(`已恢复预设：${preset.name||'未命名预设'}`);
 }
 $('#savePresetButton').addEventListener('click',async()=>{
-  const defaultName=state.mode==='grid'?'网格墙预设':state.mode==='bloom'?'环形绽放预设':state.mode==='ring'?'环绕弯曲预设':state.mode==='curvedHorizontal'?'左右弧形墙预设':'上下弧形墙预设';
+  const defaultName=state.mode==='isometric'?'等距45度预设':state.mode==='grid'?'倾斜网格墙预设':state.mode==='bloom'?'环形绽放预设':state.mode==='ring'?'环绕弯曲预设':state.mode==='curvedHorizontal'?'左右弧形墙预设':'上下弧形墙预设';
   const input=$('#presetNameInput');const name=input.value.trim()||defaultName;
   const button=$('#savePresetButton');button.disabled=true;
   try{
@@ -1715,15 +2004,28 @@ resolutionPresetMenu?.addEventListener('click',event=>{
   state.resolutionPreset=RESOLUTION_PRESETS[option.dataset.resolutionPreset]?option.dataset.resolutionPreset:DEFAULT_RESOLUTION_PRESET;
   closeResolutionPresetMenu();applyCustomAspectRatioInputs();
 });
-$('#bgColorInput').addEventListener('input',e=>{scene.background.set(e.target.value);$('.color-code').textContent=e.target.value.toUpperCase();$('.color-swatch').style.background=e.target.value;render()});
+$('#bgColorInput').addEventListener('input',e=>{setBackgroundColor(e.target.value);render();scheduleProjectSave()});
+$('#bgImageInput').addEventListener('change',async e=>{const file=e.target.files?.[0];if(file)await loadBackgroundImage(file);e.target.value=''});
+$('#clearBackgroundImage').addEventListener('click',()=>{disposeBackgroundImage();updateBackgroundImageUI();render();scheduleProjectSave()});
+$('#applyBackgroundRatio').addEventListener('click',()=>{const ratio=backgroundRatio();if(!ratio)return;$('#ratioWidthInput').value=ratio.width;$('#ratioHeightInput').value=ratio.height;applyCustomAspectRatioInputs();notify(`已应用图片比例 ${ratio.width}:${ratio.height}`)});
 $('#ringPreset').addEventListener('click',()=>setMode('ring'));
 $('#bloomPreset').addEventListener('click',()=>setMode('bloom'));
 $('#curvedPreset').addEventListener('click',()=>setMode('curved'));
 $('#curvedHorizontalPreset').addEventListener('click',()=>setMode('curvedHorizontal'));
+$('#singlePreset').addEventListener('click',()=>setMode('single'));
+document.querySelectorAll('[data-single-fixed-edge]').forEach(button=>button.addEventListener('click',()=>{if(state.mode!=='single')return;state.fixedEdge=button.dataset.singleFixedEdge;document.querySelectorAll('[data-single-fixed-edge]').forEach(item=>{const active=item.dataset.singleFixedEdge===state.fixedEdge;item.classList.toggle('active',active);item.setAttribute('aria-pressed',String(active))});updateTransforms(false,true);scheduleProjectSave()}));
+document.querySelectorAll('[data-decorative-wall]').forEach(button=>button.addEventListener('click',()=>{if(state.mode!=='single')return;state.decorativeWallEnabled=button.dataset.decorativeWall==='on';updateModeUI();updateTransforms(false,true);scheduleProjectSave()}));
+$('#decorativeWallOpacityInput').addEventListener('input',e=>{if(state.mode!=='single')return;state.decorativeWallOpacity=Number(e.target.value);syncCurvedControls();updateTransforms(false,true);scheduleProjectSave()});
+$('#decorativeWallProgressInput').addEventListener('input',e=>{if(state.mode!=='single')return;state.decorativeWallProgress=Number(e.target.value);syncCurvedControls();updateTransforms(false,true);scheduleProjectSave()});
 $('#gridPreset').addEventListener('click',()=>setMode('grid'));
+$('#isometricPreset').addEventListener('click',()=>setMode('isometric'));
 $('#cardWidthInput').addEventListener('input',e=>{state.cardWidth=Number(e.target.value);syncCardSizeControls();updateTransforms()});
 $('#cardHeightInput').addEventListener('input',e=>{state.cardHeight=Number(e.target.value);syncCardSizeControls();updateTransforms()});
 $('#slotMinus').addEventListener('click',()=>adjustSlotCount(-1));$('#slotPlus').addEventListener('click',()=>adjustSlotCount(1));
+document.querySelector('.media-toolbar .stepper')?.addEventListener('wheel',e=>{
+  e.preventDefault();
+  adjustSlotCount(e.deltaY<0?1:-1);
+},{passive:false});
 $('#uploadButton').addEventListener('click',()=>{pickerSlot=0;$('#fileInput').click()});$('#clearImagesButton').addEventListener('click',clearAllImages);
 $('#fileInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value=''});
 stage.addEventListener('dragover',e=>{if(e.dataTransfer.types.includes('Files')){e.preventDefault();stage.classList.add('file-dragging')}});
@@ -1744,7 +2046,9 @@ renderer.domElement.addEventListener('pointermove',e=>{
   beginInteractivePreview();
   if(orbitDrag.mode==='pan'){
     const rect=renderer.domElement.getBoundingClientRect();
-    const worldPerPixel=2*cameraDistance*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))/Math.max(1,rect.height);
+    const worldPerPixel=isOrthographicCamera
+      ?2*cameraHalfSpan*100/Math.max(1,state.zoom)/Math.max(1,rect.height)
+      :2*cameraDistance*Math.tan(THREE.MathUtils.degToRad(camera.fov/2))/Math.max(1,rect.height);
     const right=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);
     const up=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,1);
     const delta=right.multiplyScalar(-dx*worldPerPixel).add(up.multiplyScalar(dy*worldPerPixel));
@@ -1784,7 +2088,10 @@ $('#columnCountInput').addEventListener('input',e=>{if(isCurvedMode())setCurvedG
 $('#staggerInput').addEventListener('input',e=>{const value=Math.round(Number(e.target.value));state.stagger=value>0&&value<=5?0:value;$('#staggerInput').value=state.stagger;$('#staggerOutput').textContent=`${state.stagger}%`;if(isCurvedMode())updateTransforms()});
 $('#curvedSpacingInput').addEventListener('input',e=>{if(!isCurvedMode())return;const value=THREE.MathUtils.clamp(Number(e.target.value),0,160);if(state.spacingMode==='row')state.rowGap=value;else if(state.spacingMode==='column')state.columnGap=value;else{state.columnGap=value;state.rowGap=value}syncCurvedControls();updateTransforms();scheduleProjectSave()});
 document.querySelectorAll('[data-curved-spacing-mode]').forEach(button=>button.addEventListener('click',()=>{if(!isCurvedMode())return;const mode=button.dataset.curvedSpacingMode;state.spacingMode=mode==='column'||mode==='row'?mode:'all';if(state.spacingMode==='all')state.rowGap=state.columnGap;syncCurvedControls();updateTransforms();scheduleProjectSave()}));
-$('#curveBendInput').addEventListener('input',e=>{state.curveBend=Number(e.target.value);$('#curveBendOutput').textContent=`${state.curveBend}°`;if(isCurvedMode())updateTransforms()});
+// Bending changes the wall shape, but should not silently change the user's
+// viewport scale. Keep the current camera distance while the slider moves;
+// the user can still use Fit to canvas when they want a fresh framing.
+$('#curveBendInput').addEventListener('input',e=>{state.curveBend=Number(e.target.value);$('#curveBendOutput').textContent=`${state.curveBend}°`;if(isCurvedMode())updateTransforms(false,true)});
 document.querySelectorAll('[data-curved-stagger-direction]').forEach(button=>button.addEventListener('click',()=>{if(!isCurvedMode())return;state.staggerDirection=button.dataset.curvedStaggerDirection==='vertical'?'vertical':'horizontal';syncCurvedControls();updateTransforms();scheduleProjectSave()}));
 $('#gridRowCountInput').addEventListener('input',e=>{if(!isGridMode())return;normalizeCurvedGrid(Number(e.target.value),state.columns,'rows');syncGridControls();updateTransforms();scheduleProjectSave()});
 $('#gridColumnCountInput').addEventListener('input',e=>{if(!isGridMode())return;normalizeCurvedGrid(state.rows,Number(e.target.value),'columns');syncGridControls();updateTransforms();scheduleProjectSave()});
@@ -1794,28 +2101,30 @@ $('#gridStaggerInput').addEventListener('input',e=>{if(!isGridMode())return;stat
 document.querySelectorAll('[data-grid-direction]').forEach(button=>button.addEventListener('click',()=>{if(!isGridMode())return;state.gridStaggerDirection=button.dataset.gridDirection==='vertical'?'vertical':'horizontal';syncGridControls();updateTransforms();scheduleProjectSave()}));
 function updateSelectedPhotoAdjustment(key,value){
   const photo=state.photos[state.selected];if(!photo)return;
-  photo[key]=Number(value);syncPhotoAdjustControls();applyCardTextureTransform(cards[state.selected]);render();scheduleProjectSave();
+  const baseline=key==='imageOffsetY'&&state.mode==='isometric'&&photo.sample?58:0;
+  photo[key]=Number(value)+baseline;syncPhotoAdjustControls();applyCardTextureTransform(cards[state.selected]);render();scheduleProjectSave();
 }
 $('#photoScaleInput').addEventListener('input',e=>updateSelectedPhotoAdjustment('imageScale',Number(e.target.value)/100));
 $('#photoOffsetXInput').addEventListener('input',e=>updateSelectedPhotoAdjustment('imageOffsetX',e.target.value));
 $('#photoOffsetYInput').addEventListener('input',e=>updateSelectedPhotoAdjustment('imageOffsetY',e.target.value));
-$('#resetPhotoAdjust').addEventListener('click',()=>{const photo=state.photos[state.selected];if(!photo)return;photo.imageScale=1;photo.imageOffsetX=0;photo.imageOffsetY=0;syncPhotoAdjustControls();applyCardTextureTransform(cards[state.selected]);render();scheduleProjectSave();notify(`已重置槽位 ${state.selected+1} 的图片调整`)});
+$('#resetPhotoAdjust').addEventListener('click',()=>{const photo=state.photos[state.selected];if(!photo)return;photo.imageScale=1;photo.imageOffsetX=0;photo.imageOffsetY=state.mode==='isometric'&&photo.sample?58:0;syncPhotoAdjustControls();applyCardTextureTransform(cards[state.selected]);render();scheduleProjectSave();notify(`已重置槽位 ${state.selected+1} 的图片调整`)});
 $('#closePhotoAdjust').addEventListener('click',()=>{photoAdjustOpen=false;positionPhotoAdjustPanel()});
-document.addEventListener('keydown',event=>{if(event.key!=='Escape')return;if(photoAdjustOpen){event.preventDefault();photoAdjustOpen=false;positionPhotoAdjustPanel()}if(previewQualityMenu?.classList.contains('open')){event.preventDefault();closePreviewQualityMenu()}if(exportMenu?.classList.contains('open')){event.preventDefault();closeExportMenu()}if(resolutionPresetMenu?.classList.contains('open')){event.preventDefault();closeResolutionPresetMenu()}});
-$('#cornerInput').addEventListener('input',e=>{state.corner=Number(e.target.value);$('#cornerOutput').textContent=`${state.corner} px`;for(const card of cards)if(card)card.cornerUniform.value=state.corner/DESIGN_SCALE;render()});
+document.addEventListener('keydown',event=>{if(event.key!=='Escape')return;if(photoAdjustOpen){event.preventDefault();photoAdjustOpen=false;positionPhotoAdjustPanel()}if(previewQualityMenu?.classList.contains('open')){event.preventDefault();closePreviewQualityMenu()}if(exportDialog){event.preventDefault();closeExportDialog()}if(resolutionPresetMenu?.classList.contains('open')){event.preventDefault();closeResolutionPresetMenu()}});
+$('#cornerInput').addEventListener('input',e=>{state.corner=Number(e.target.value);$('#cornerOutput').textContent=`${state.corner} px`;for(const card of cards)if(card)card.cornerUniform.value=state.corner/DESIGN_SCALE;updateDecorativeTransforms();render()});
 $('#contentRotationInput').addEventListener('input',e=>{state.contentRotation=Number(e.target.value);$('#contentRotationOutput').textContent=`${state.contentRotation}°`;updateTransforms()});
-$('#backBrightnessInput').addEventListener('input',e=>{state.backBrightness=Number(e.target.value);$('#backBrightnessOutput').textContent=`${state.backBrightness}%`;for(const card of cards)if(card)card.backMaterial.color.setScalar(state.mode==='bloom'?1:state.backBrightness/100);render()});
+document.querySelectorAll('[data-image-direction]').forEach(button=>button.addEventListener('click',()=>{state.imageDirection=button.dataset.imageDirection;for(const card of cards)applyCardTextureTransform(card);updateModeUI();updateTransforms(false);scheduleProjectSave()}));
+$('#backBrightnessInput').addEventListener('input',e=>{state.backBrightness=Number(e.target.value);$('#backBrightnessOutput').textContent=`${state.backBrightness}%`;for(const card of cards)if(card)card.backMaterial.color.setScalar(state.mode==='bloom'?1:state.backBrightness/100);for(const card of decorativeCards)if(card)card.backMaterial.color.setScalar(state.backBrightness/100);render()});
 $('#photoOpacityInput').addEventListener('input',e=>{state.photoOpacity=THREE.MathUtils.clamp(Number(e.target.value),0,100);$('#photoOpacityOutput').textContent=`${state.photoOpacity}%`;syncCardOpacity();render();scheduleProjectSave()});
 $('#wallTiltInput').addEventListener('input',e=>{const value=Number(e.target.value);state.wallTilt=value;state[tiltKey(state.tiltAxis||'x')]=value;if(isGridMode())state.gridTiltZ=state.tiltZ;$('#wallTiltOutput').textContent=`${Math.round(value)}°`;updateTransforms();scheduleProjectSave()});
 tiltGizmoToggle?.addEventListener('click',()=>setTiltGizmoVisible(!tiltGizmoVisible));
 document.querySelectorAll('[data-tilt-axis]').forEach(button=>button.addEventListener('click',()=>{state.tiltAxis=button.dataset.tiltAxis==='y'||button.dataset.tiltAxis==='z'?button.dataset.tiltAxis:'x';syncViewControls();updateTransforms();scheduleProjectSave()}));
-document.querySelectorAll('[data-camera-axis]').forEach(button=>button.addEventListener('click',()=>{state.cameraAxis=button.dataset.cameraAxis==='y'?'y':'x';syncViewControls();updateTransforms(false);scheduleProjectSave()}));
-$('#cameraRotationInput').addEventListener('input',e=>{const value=Number(e.target.value);if(state.cameraAxis==='y'){state.rotation=value;updateTransforms(false)}else{state.tilt=value;fitCamera()}$('#cameraRotationOutput').textContent=`${Math.round(value)}°`;render();scheduleProjectSave()});
-$('#fovInput').addEventListener('input',e=>{state.fov=THREE.MathUtils.clamp(Number(e.target.value),5,120);camera.fov=state.fov;$('#fovInput').value=state.fov;$('#fovOutput').textContent=`${state.fov}°`;fitCamera();render();scheduleProjectSave()});
+document.querySelectorAll('[data-camera-axis]').forEach(button=>button.addEventListener('click',()=>{state.cameraAxis=button.dataset.cameraAxis==='y'?'y':'x';syncViewControls();render();scheduleProjectSave()}));
+$('#cameraRotationInput').addEventListener('input',e=>{const value=Number(e.target.value);if(state.cameraAxis==='y')state.rotation=value;else state.tilt=value;if(isOrthographicCamera)fitCamera(true);else if(state.cameraAxis==='y')updateTransforms(false);else fitCamera();$('#cameraRotationOutput').textContent=`${Math.round(value)}°`;render();scheduleProjectSave()});
+$('#fovInput').addEventListener('input',e=>{state.fov=THREE.MathUtils.clamp(Number(e.target.value),0,120);setCameraProjection(shouldUseOrthographicCamera());if(!isOrthographicCamera)camera.fov=state.fov;$('#fovInput').value=state.fov;$('#fovOutput').textContent=`${state.fov}°`;fitCamera(true);render();scheduleProjectSave()});
 function resetCurrentEffect(){
   modeSettings[state.mode]=createModeSettings(state.mode);
   applyModeSettings(state.mode);
-  state.cardWidth=DEFAULT_CARD_WIDTH;state.cardHeight=DEFAULT_CARD_HEIGHT;syncCardSizeControls();
+  state.cardWidth=modeSettings[state.mode]?.cardWidth??DEFAULT_CARD_WIDTH;state.cardHeight=modeSettings[state.mode]?.cardHeight??DEFAULT_CARD_HEIGHT;syncCardSizeControls();
   $('#cornerInput').value=state.corner;$('#cornerOutput').textContent=`${state.corner} px`;
   $('#contentRotationInput').value=state.contentRotation;$('#contentRotationOutput').textContent=`${state.contentRotation}°`;
   $('#backBrightnessInput').value=state.backBrightness;$('#backBrightnessOutput').textContent=`${state.backBrightness}%`;
@@ -1825,11 +2134,22 @@ function resetCurrentEffect(){
   if(isCurvedMode()){normalizeCurvedGrid(state.rows,state.columns,'rows');syncCurvedControls();updateSlots();updateTransforms()}else if(isGridMode()){normalizeCurvedGrid(state.rows,state.columns,'rows');syncGridControls();updateSlots();updateTransforms()}else syncRingControls();syncViewControls();zoom(state.zoom);updateModeUI();scheduleProjectSave();notify('当前效果已恢复默认参数');
 }
 function confirmResetCurrentEffect(){
-  if(window.confirm('确定将当前效果的参数恢复为默认状态吗？\n照片槽位和图片不会改变。'))resetCurrentEffect();
+  const existing=document.querySelector('.reset-confirm-backdrop');
+  if(existing){existing.remove();return}
+  const backdrop=document.createElement('div');backdrop.className='reset-confirm-backdrop';
+  backdrop.innerHTML='<div class="reset-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="resetConfirmTitle"><h3 id="resetConfirmTitle">恢复默认参数？</h3><p>当前效果的参数将恢复默认，照片槽位和图片不会改变。</p><div class="reset-confirm-actions"><button type="button" data-reset-cancel>取消</button><button type="button" class="primary" data-reset-confirm>确认重置</button></div></div>';
+  const onKeydown=event=>{if(event.key==='Escape'){event.preventDefault();close()}else if(event.key==='Enter'){event.preventDefault();close();resetCurrentEffect()}};
+  const close=()=>{document.removeEventListener('keydown',onKeydown);backdrop.remove()};
+  backdrop.addEventListener('click',event=>{if(event.target===backdrop)close()});
+  backdrop.querySelector('[data-reset-cancel]').addEventListener('click',close);
+  backdrop.querySelector('[data-reset-confirm]').addEventListener('click',()=>{close();resetCurrentEffect()});
+  document.body.appendChild(backdrop);
+  document.addEventListener('keydown',onKeydown);
+  backdrop.querySelector('[data-reset-cancel]').focus();
 }
 $('#resetButton').addEventListener('click',confirmResetCurrentEffect);
 tiltGizmoReset?.addEventListener('click',confirmResetCurrentEffect);
-function zoom(value){state.zoom=Math.max(40,Math.min(400,value));$('#zoomLabel').textContent=`${state.zoom}%`;$('#viewZoomInput').value=state.zoom;$('#viewZoomOutput').textContent=`${state.zoom}%`;fitCamera(true);render()}
+function zoom(value){state.zoom=Math.round(Math.max(40,Math.min(800,Number(value)||40))/10)*10;$('#zoomLabel').textContent=`${state.zoom}%`;$('#viewZoomInput').value=state.zoom;$('#viewZoomOutput').textContent=`${state.zoom}%`;fitCamera(true);render()}
 function interactiveZoom(value){beginInteractivePreview();zoom(value);endInteractivePreview()}
 $('#zoomInButton').addEventListener('click',()=>interactiveZoom(state.zoom+10));$('#zoomOutButton').addEventListener('click',()=>interactiveZoom(state.zoom-10));$('#fitButton').addEventListener('click',()=>{beginInteractivePreview();cameraTarget.set(0,0,0);syncPanControls();zoom(100);fitCamera(true);render();endInteractivePreview()});
 const previewQualityControl=$('#previewQualityControl'),previewQualityTrigger=$('#previewQualityTrigger'),previewQualityMenu=$('#previewQualityMenu');
@@ -1837,50 +2157,124 @@ function closePreviewQualityMenu(){previewQualityMenu?.classList.remove('open');
 previewQualityTrigger?.addEventListener('click',event=>{event.stopPropagation();const open=!previewQualityMenu.classList.contains('open');previewQualityMenu.classList.toggle('open',open);previewQualityTrigger.setAttribute('aria-expanded',String(open))});
 previewQualityMenu?.addEventListener('click',event=>{const option=event.target.closest('[data-preview-quality]');if(!option)return;closePreviewQualityMenu();applyPreviewQuality(option.dataset.previewQuality)});
 syncPreviewQualityControl();
-const exportControl=$('#exportControl'),exportTrigger=$('#exportButton'),exportMenu=$('#exportMenu');
-function closeExportMenu(){exportMenu?.classList.remove('open');exportTrigger?.setAttribute('aria-expanded','false')}
-exportTrigger?.addEventListener('click',event=>{event.stopPropagation();const open=!exportMenu.classList.contains('open');exportMenu.classList.toggle('open',open);exportTrigger.setAttribute('aria-expanded',String(open))});
-exportMenu?.addEventListener('click',event=>{const option=event.target.closest('[data-export-format]');if(!option)return;closeExportMenu();exportImage(option.dataset.exportFormat)});
+const exportControl=$('#exportControl'),exportTrigger=$('#exportButton');
+let exportDialog=null;
+function closeExportDialog(){if(!exportDialog)return;document.removeEventListener('keydown',exportDialog.onKeydown);exportDialog.backdrop.remove();exportDialog=null;exportTrigger?.setAttribute('aria-expanded','false')}
+function openExportDialog(){
+  if(exportDialog){closeExportDialog();return}
+  const backdrop=document.createElement('div');backdrop.className='reset-confirm-backdrop export-confirm-backdrop';
+  const defaultPreset=['2K','4K','8K'].includes(state.resolutionPreset)?state.resolutionPreset:'2K';
+  backdrop.innerHTML=`<div class="reset-confirm-dialog export-dialog" role="dialog" aria-modal="true" aria-labelledby="exportDialogTitle"><h3 id="exportDialogTitle">导出图片</h3><p>选择文件格式和输出尺寸。</p><div class="export-choice"><span>格式</span><div class="export-choice-grid"><button type="button" class="selected" data-export-format="png" aria-pressed="true">PNG</button><button type="button" data-export-format="jpeg" aria-pressed="false">JPEG</button></div></div><div class="export-choice"><span>尺寸</span><div class="export-choice-grid export-size-grid"><button type="button" data-export-resolution="2K" aria-pressed="${defaultPreset==='2K'}">2K<small>1920 px</small></button><button type="button" data-export-resolution="4K" aria-pressed="${defaultPreset==='4K'}">4K<small>3840 px</small></button><button type="button" data-export-resolution="8K" aria-pressed="${defaultPreset==='8K'}">8K<small>7680 px</small></button></div></div><div class="reset-confirm-actions"><button type="button" data-export-cancel>取消</button><button type="button" class="primary" data-export-confirm>导出</button></div></div>`;
+  let format='png',resolution=defaultPreset;
+  const setChoice=(selector,attribute,value)=>backdrop.querySelectorAll(selector).forEach(button=>{const selected=button.dataset[attribute]===value;button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected))});
+  backdrop.querySelectorAll('[data-export-format]').forEach(button=>button.addEventListener('click',()=>{format=button.dataset.exportFormat;setChoice('[data-export-format]','exportFormat',format)}));
+  backdrop.querySelectorAll('[data-export-resolution]').forEach(button=>button.addEventListener('click',()=>{resolution=button.dataset.exportResolution;setChoice('[data-export-resolution]','exportResolution',resolution)}));
+  const startExport=()=>{state.resolutionPreset=resolution;closeExportDialog();exportImage(format,resolution)};
+  const onKeydown=event=>{if(event.key==='Escape'){event.preventDefault();closeExportDialog()}else if(event.key==='Enter'){event.preventDefault();startExport()}};
+  exportDialog={backdrop,onKeydown};
+  backdrop.addEventListener('click',event=>{if(event.target===backdrop)closeExportDialog()});
+  backdrop.querySelector('[data-export-cancel]').addEventListener('click',closeExportDialog);
+  backdrop.querySelector('[data-export-confirm]').addEventListener('click',startExport);
+  document.body.appendChild(backdrop);setTimeout(()=>applyLanguage(currentLanguage),0);document.addEventListener('keydown',onKeydown);exportTrigger?.setAttribute('aria-expanded','true');backdrop.querySelector('[data-export-format]').focus();
+}
+exportTrigger?.addEventListener('click',event=>{event.stopPropagation();openExportDialog()});
+$('#zoomLabel').addEventListener('input',e=>{const value=Number(String(e.target.textContent).replace(/[^0-9.-]/g,''));if(!Number.isFinite(value)||value<40||value>800)return;beginInteractivePreview();zoom(value);endInteractivePreview()});
+$('#zoomLabel').addEventListener('blur',e=>{const value=Number(String(e.target.textContent).replace(/[^0-9.-]/g,''));zoom(Number.isFinite(value)?value:state.zoom)});
+$('#zoomLabel').addEventListener('wheel',e=>{e.preventDefault();beginInteractivePreview();zoom(state.zoom+(e.deltaY<0?20:-20));endInteractivePreview()},{passive:false});
+$('#zoomLabel').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();e.currentTarget.blur()}});
 $('#viewZoomInput').addEventListener('input',e=>{beginInteractivePreview();zoom(Number(e.target.value));endInteractivePreview()});
 $('#viewOffsetXInput').addEventListener('input',e=>{state.viewOffsetX=Number(e.target.value);cameraTarget.x=state.viewOffsetX/DESIGN_SCALE;syncPanControls();updateCameraOrbit();render()});
 $('#viewOffsetYInput').addEventListener('input',e=>{state.viewOffsetY=Number(e.target.value);cameraTarget.y=state.viewOffsetY/DESIGN_SCALE;syncPanControls();updateCameraOrbit();render()});
-renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();beginInteractivePreview();zoom(state.zoom+(e.deltaY<0?10:-10));endInteractivePreview()},{passive:false});
-$('#themeButton').addEventListener('click',()=>document.body.classList.toggle('light-theme'));
-$('#projectButton').addEventListener('click',()=>{const menu=$('#projectMenu');const open=!menu.classList.contains('open');menu.classList.toggle('open',open);menu.setAttribute('aria-hidden',String(!open));if(open)renderProjectList()});
+renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();beginInteractivePreview();zoom(state.zoom+(e.deltaY<0?20:-20));endInteractivePreview()},{passive:false});
+const settingsControl=$('#settingsControl'),settingsMenu=$('#settingsMenu'),themeButton=$('#themeButton'),brandSettingsTrigger=$('#brandSettingsTrigger');
+const BRAND_NOTICE_KEY='photo-wall-brand-notice-v1';
+try{if(localStorage.getItem(BRAND_NOTICE_KEY)==='seen')brandSettingsTrigger?.classList.add('notice-seen')}catch{}
+brandSettingsTrigger?.addEventListener('click',()=>{brandSettingsTrigger.classList.add('notice-seen');try{localStorage.setItem(BRAND_NOTICE_KEY,'seen')}catch{}},{once:false});
+function closeSettingsMenu(){settingsMenu?.classList.remove('open');settingsMenu?.setAttribute('aria-hidden','true');themeButton?.setAttribute('aria-expanded','false');brandSettingsTrigger?.setAttribute('aria-expanded','false')}
+const toggleSettingsMenu=event=>{event.preventDefault();event.stopPropagation();const open=!settingsMenu.classList.contains('open');settingsMenu.classList.toggle('open',open);settingsMenu.setAttribute('aria-hidden',String(!open));themeButton?.setAttribute('aria-expanded',String(open));brandSettingsTrigger?.setAttribute('aria-expanded',String(open))};themeButton?.addEventListener('click',toggleSettingsMenu);brandSettingsTrigger?.addEventListener('click',toggleSettingsMenu);
+$('#closeSettingsMenu')?.addEventListener('click',closeSettingsMenu);
+document.querySelectorAll('[data-theme-choice]').forEach(button=>button.addEventListener('click',()=>{document.body.classList.toggle('light-theme',button.dataset.themeChoice==='light');localStorage.setItem('photo-wall-theme',button.dataset.themeChoice);document.querySelectorAll('[data-theme-choice]').forEach(item=>item.classList.toggle('active',item===button))}));const LANGUAGE_KEY='photo-wall-language-v1';
+const LANGUAGE_TEXT={
+  '图片墙':'Photo Wall','点击 Logo 查看设置与赞赏':'Click the logo to view settings and support','项目':'Projects','导出':'Export','主题':'Theme','暗夜模式':'Dark mode','白天模式':'Light mode','语言':'Language','中文':'Chinese','作者介绍':'About the author','赞赏二维码':'Support the author','小红书主页':'Xiaohongshu','邦邦PPT':'Bangbang PPT','图片':'Photos','槽位数量':'Slot count','读取本地图片':'Read local images','上传背景图片':'Upload background image','背景颜色':'Background color','自定义比例':'Custom ratio','适合画布':'Fit canvas','原图':'Original','标准':'Standard','重置':'Reset','图片调整':'Adjust image','替换图片':'Replace image','调整图片':'Adjust image','清空所有图片':'Clear all images','支持多选 · JPG、PNG、WebP':'Multiple files · JPG, PNG, WebP','支持 JPG、PNG、WebP':'JPG, PNG, WebP','环绕弯曲':'Ring curve','环形绽放':'Bloom ring','上下弧形墙':'Vertical curve wall','单侧弯曲':'Single-side bend','固定边缘':'Fixed edge','装饰弯曲墙':'Decorative curve wall','关闭':'Off','开启':'On','装饰透明度':'Decorative opacity','装饰弯曲':'Decorative bend','图片朝向':'Image orientation','左侧':'Left','右侧':'Right','上侧':'Top','下侧':'Bottom','上':'Up','下':'Down','左':'Left','左右弧形墙':'Horizontal curve wall','倾斜网格墙':'Tilted grid wall','等距45度':'Isometric 45°','网格':'Grid','3D透视':'3D perspective','显示三轴辅助线':'Show axis guides','隐藏三轴辅助线':'Hide axis guides','预览精度':'Preview quality','预览精度选项':'Preview quality options','视口缩放百分比':'Viewport zoom','左键拖动':'Drag with left button','360度查看':'360° view','平移视角':'Pan view','滚轮':'Scroll wheel','缩放照片':'Zoom photo','双击':'Double-click','选中并替换':'Select and replace','应用图片比例到自定义比例':'Apply image ratio','清除背景图片':'Clear background image','比例宽':'Ratio width','比例高':'Ratio height','行数':'Rows','每行数量':'Items / row','间距方式':'Gap mode','间距':'Gap','列间距':'Columns','行间距':'Rows','错位方向':'Stagger axis','横向':'Horizontal','竖向':'Vertical','错位程度':'Stagger','卡片圆角':'Corner radius','图片旋转':'Image rotation','反面亮度':'Back brightness','图片透明度':'Image opacity','倾斜轴':'Tilt axis','整体倾斜':'Wall tilt','相机旋转轴':'Camera axis','相机X轴旋转':'Camera X rotation','透视角度':'Perspective angle','视角水平偏移（X）':'Horizontal view offset (X)','视角垂直偏移（Y）':'Vertical view offset (Y)','照片预设':'Photo presets','预设名称':'Preset name','保存':'Save','恢复':'Restore','删除':'Delete','还没有保存的预设':'No saved presets','点击选择图片':'Click to select image','点击添加或替换图片':'Click to add or replace image','关闭':'Close','重置':'Reset','项目名称':'Project name','新项目名称':'New project name','新建':'Create','还没有项目':'No projects','清空所有图片':'Clear all images','本地图片保存在当前浏览器，不会上传':'Images stay in this browser and are not uploaded','设置':'Settings','图片宽度':'Image width','图片高度':'Image height','整体弯曲':'Overall curve','图片间距':'Image spacing','图片槽位':'Image slots','行间距':'Rows','列间距':'Columns','卡片圆角':'Card corner radius','反面亮度':'Back brightness','图片透明度':'Image opacity','整体倾斜':'Overall tilt','相机旋转轴':'Camera rotation axis','相机X轴旋转':'Camera X-axis rotation','视口缩放':'Viewport zoom','视角水平偏移（X）':'Horizontal view offset (X)','视角垂直偏移（Y）':'Vertical view offset (Y)','照片预设':'Photo presets','仅保存照片墙参数':'Saves photo wall parameters only','环形半径':'Ring radius','图片缩放':'Scale','水平位置':'X position','垂直位置':'Y position','图片生成失败':'Image generation failed','导出图片':'Export image','选择文件格式和输出尺寸。':'Choose a format and output size.','格式':'Format','尺寸':'Size','取消':'Cancel','确认重置':'Confirm reset','恢复默认参数？':'Restore default settings?','当前效果的参数将恢复默认，照片槽位和图片不会改变。':'Current effect settings will be restored. Photo slots and images will stay unchanged.','确认':'Confirm','导出中':'Exporting','实时预览':'Live preview','松开鼠标，将图片添加到照片墙':'Release to add images to the photo wall','未命名项目':'Untitled project','默认项目':'Default project','项目图片读取失败，请重新打开项目':'Could not load project images. Please reopen the project','ⓘ 本地图片保存在当前浏览器，不会上传':'ⓘ Images stay in this browser and are not uploaded','小红书主页二维码':'Xiaohongshu QR code','赞赏二维码':'Support QR code','重置当前效果':'Reset current effect','清空所有图片':'Clear all images','替换图片':'Replace image','点击添加或替换图片':'Click to add or replace image','预览精度':'Preview quality','应用图片比例到自定义比例':'Apply image ratio to custom ratio','清除背景图片':'Clear background image','控制相邻行或列的错位程度；接近 0% 时自动吸附到边缘对齐':'Controls the stagger between adjacent rows or columns; near 0% aligns to the edges','正值向前凸，负值向后凹；右键循环切换角度档位':'Positive values curve forward, negative values curve backward; right-click to cycle presets','360度查看 ·':'360° view ·','平移视角 ·':'Pan view ·','缩放照片 ·':'Zoom photo ·','Alt + 左键':'Alt + left button','ⓘ 本地图片保存在当前浏览器，不会上传':'ⓘ Images stay in this browser and are not uploaded','点击输入数值，滚轮微调':'Click to enter a value; scroll to adjust','右键循环切换角度档位':'Right-click to cycle angle presets','示例图片':'Sample image'
+};
+const LANGUAGE_TEXT_ZH=Object.fromEntries(Object.entries(LANGUAGE_TEXT).map(([zh,en])=>[en,zh]));
+function applyLanguage(value){
+  const lang=value==='en'?'en':'zh';
+  currentLanguage=lang;
+  const map=lang==='en'?LANGUAGE_TEXT:LANGUAGE_TEXT_ZH;
+  document.documentElement.lang=lang==='en'?'en':'zh-CN';
+  document.querySelectorAll('[data-language-choice]').forEach(item=>item.classList.toggle('active',item.dataset.languageChoice===lang));
+  const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+  let node;while(node=walker.nextNode()){const raw=node.nodeValue,trimmed=raw.trim();let translated=map[trimmed];if(!translated&&lang==='en'){translated=trimmed.replace(/^槽位 (\d+)$/,'Slot $1').replace(/^示例照片 (\d+)$/,'Sample photo $1').replace(/^(\d+) 个槽位$/,'$1 slots').replace(/^(\d+) 张图片$/,'$1 photos').replace(/^图片 (\d+)$/,'Photo $1').replace(/^默认项目 · 上下弧形$/,'Default project · Vertical curve wall').replace(/^默认项目 · 环绕弯曲$/,'Default project · Ring curve').replace(/^默认项目 · 环形绽放$/,'Default project · Bloom ring').replace(/^默认项目 · 倾斜网格墙$/,'Default project · Tilted grid wall').replace(/^默认项目 · 等距45度$/,'Default project · Isometric 45°').replace(/^默认项目 · 左右弧形$/,'Default project · Horizontal curve wall');}if(!translated&&lang==='zh'){translated=trimmed.replace(/^Slot (\d+)$/,'槽位 $1').replace(/^Sample photo (\d+)$/,'示例照片 $1').replace(/^(\d+) slots$/,'$1 个槽位').replace(/^Photo (\d+)$/,'图片 $1').replace(/^(\d+) photos$/,'$1 张图片');}if(translated&&translated!==trimmed)node.nodeValue=raw.replace(trimmed,translated);}
+  document.querySelectorAll('[title],[aria-label],[placeholder],[alt]').forEach(element=>{for(const attribute of ['title','aria-label','placeholder','alt']){const value=element.getAttribute(attribute);if(!value)continue;let translated=map[value];if(!translated&&lang==='en'){translated=value.replace(/^槽位 (\d+)$/,'Slot $1').replace(/^示例照片 (\d+)$/,'Sample photo $1').replace(/^删除项目：/,'Delete project: ').replace(/^重置项目：/,'Reset project: ');}if(!translated&&lang==='zh'){translated=value.replace(/^Slot (\d+)$/,'槽位 $1').replace(/^Sample photo (\d+)$/,'示例照片 $1');}if(translated&&translated!==value)element.setAttribute(attribute,translated)}});
+  const author=document.querySelector('.author-copy p');if(author)author.innerHTML=lang==='en'?'A workplace PPTer learning by doing,<br>sharing useful PPT templates every day.':'一个正在摸爬滚打的职场 PPTer，<br>日常分享好用的 PPT 模板。';
+  const reward=document.querySelector('.reward-note');if(reward)reward.textContent=lang==='en'?'If you find a feature useful, you can support the author~':'如果您觉得有哪些眼前一亮的功能，可以给作者打赏~';
+  try{localStorage.setItem(LANGUAGE_KEY,lang)}catch{}
+}
+document.querySelectorAll('[data-language-choice]').forEach(button=>button.addEventListener('click',()=>applyLanguage(button.dataset.languageChoice)));
+const savedLanguage=localStorage.getItem(LANGUAGE_KEY)||'zh';applyLanguage(savedLanguage);setTimeout(()=>applyLanguage(savedLanguage),250);
+
+const savedTheme=localStorage.getItem('photo-wall-theme');if(savedTheme==='light')document.body.classList.add('light-theme');if(savedTheme)document.querySelector(`[data-theme-choice="${savedTheme}"]`)?.classList.add('active');
+$('#projectButton').addEventListener('click',()=>{const menu=$('#projectMenu');const open=!menu.classList.contains('open');menu.classList.toggle('open',open);menu.setAttribute('aria-hidden',String(!open));if(open){renderProjectList();setTimeout(()=>applyLanguage(currentLanguage),0)}});
 $('#closeProjectMenu').addEventListener('click',closeProjectMenu);
 $('#createProjectButton').addEventListener('click',()=>{const input=$('#projectNameInput');createProject(input.value);input.value=''});
 $('#projectNameInput').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();$('#createProjectButton').click()}});
 $('#projectList').addEventListener('click',event=>{const reset=event.target.closest('[data-project-reset]');if(reset){event.stopPropagation();resetProject(reset.dataset.projectReset);return}const remove=event.target.closest('[data-project-delete]');if(remove){event.stopPropagation();deleteProject(remove.dataset.projectDelete);return}const name=event.target.closest('[data-project-name]');if(name){event.stopPropagation();beginProjectRename(name.dataset.projectName);return}const row=event.target.closest('[data-project-id]');if(row)switchProject(row.dataset.projectId)});
 $('#projectList').addEventListener('keydown',event=>{if(event.key!=='Enter'&&event.key!==' ')return;const row=event.target.closest('[data-project-id]');if(!row||event.target.closest('[data-project-delete]')||event.target.closest('[data-project-reset]'))return;event.preventDefault();switchProject(row.dataset.projectId)});
-document.addEventListener('pointerdown',event=>{if(!event.target.closest('#projectMenu')&&!event.target.closest('#projectButton'))closeProjectMenu();if(!event.target.closest('#previewQualityControl'))closePreviewQualityMenu();if(!event.target.closest('#exportControl'))closeExportMenu();if(!event.target.closest('#resolutionPresetControl'))closeResolutionPresetMenu()});
-$('#undoButton').addEventListener('click',()=>notify('撤销功能将在后续版本加入'));$('#redoButton').addEventListener('click',()=>notify('重做功能将在后续版本加入'));
-async function exportImage(format='png'){
+document.addEventListener('pointerdown',event=>{if(!event.target.closest('#projectMenu')&&!event.target.closest('#projectButton'))closeProjectMenu();if(!event.target.closest('#settingsControl')&&!event.target.closest('#brandSettingsTrigger'))closeSettingsMenu();if(!event.target.closest('#previewQualityControl'))closePreviewQualityMenu();if(!event.target.closest('#exportControl')&&!event.target.closest('.export-confirm-backdrop'))closeExportDialog();if(!event.target.closest('#resolutionPresetControl'))closeResolutionPresetMenu()});
+async function exportImage(format='png',resolutionPreset=state.resolutionPreset||DEFAULT_RESOLUTION_PRESET){
   const button=$('#exportButton'),label=button.querySelector('.export-label');button.disabled=true;button.classList.add('exporting');if(label)label.textContent='导出中';
   const oldAspect=camera.aspect,oldBackground=scene.background;
+  const oldOrtho=isOrthographicCamera?{left:camera.left,right:camera.right,top:camera.top,bottom:camera.bottom}:null;
   const isJpeg=format==='jpeg',extension=isJpeg?'jpg':'png',mime=isJpeg?'image/jpeg':'image/png';
+  const targetDimensions=dimensionsForAspectRatio(`${state.ratioWidth}:${state.ratioHeight}`,RESOLUTION_PRESETS[resolutionPreset]||RESOLUTION_PRESETS[DEFAULT_RESOLUTION_PRESET]);
+  const targetWidth=targetDimensions.width,targetHeight=targetDimensions.height;
   try{
     // The editor can use a lighter preview texture, while export temporarily
     // restores each original image so both formats keep the source resolution.
     await switchToFullResolutionTextures();
     if(!exportRenderer){exportRenderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});exportRenderer.setPixelRatio(1);exportRenderer.setClearColor(0x000000,0);exportRenderer.outputColorSpace=THREE.SRGBColorSpace;exportRenderer.toneMapping=THREE.NoToneMapping;exportRenderer.toneMappingExposure=1}
-    exportRenderer.setSize(state.width,state.height,false);
-    camera.aspect=state.width/state.height;camera.updateProjectionMatrix();
-    if(isJpeg){
+    // Render larger than the requested output, then downsample with a high
+    // quality 2D pass. This keeps the downloaded file at the selected 4K
+    // dimensions while improving diagonal edges and rounded corners. Cap the
+    // multiplier by the GPU renderbuffer limit so very large custom sizes do
+    // not fail on lower-end devices.
+    const maxRenderSize=Math.max(1,exportRenderer.capabilities.maxRenderbufferSize||8192);
+    const exportScale=Math.max(1,Math.min(2,maxRenderSize/Math.max(targetWidth,targetHeight)));
+    const renderWidth=Math.max(1,Math.round(targetWidth*exportScale));
+    const renderHeight=Math.max(1,Math.round(targetHeight*exportScale));
+    exportRenderer.setSize(renderWidth,renderHeight,false);
+    camera.aspect=targetWidth/targetHeight;
+    if(isOrthographicCamera){const halfHeight=Math.max(.1,cameraHalfSpan*100/Math.max(1,state.zoom)),aspect=targetWidth/Math.max(1,targetHeight);camera.left=-halfHeight*aspect;camera.right=halfHeight*aspect;camera.top=halfHeight;camera.bottom=-halfHeight}
+    camera.updateProjectionMatrix();
+    if(backgroundTexture){
+      exportRenderer.setClearColor(0x000000,1);exportRenderer.setClearAlpha?.(1);scene.background=oldBackground;
+    }else if(isJpeg){
       // JPEG has no alpha channel, so retain the current canvas background.
-      exportRenderer.setClearColor(oldBackground||0x101014,1);exportRenderer.setClearAlpha?.(1);scene.background=oldBackground||new THREE.Color('#101014');
+      exportRenderer.setClearColor(new THREE.Color(backgroundColor),1);exportRenderer.setClearAlpha?.(1);scene.background=oldBackground||new THREE.Color(backgroundColor);
     }else{
       exportRenderer.setClearColor(0x000000,0);exportRenderer.setClearAlpha?.(0);scene.background=null;exportRenderer.clear(true,true,true);
     }
     exportRenderer.render(scene,camera);
-    const blob=await new Promise((resolve,reject)=>exportRenderer.domElement.toBlob(value=>value?resolve(value):reject(new Error('图片生成失败')),mime,isJpeg?0.92:undefined));
-    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`photo-wall-${state.width}x${state.height}.${extension}`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1500);notify(`已导出 ${state.width} × ${state.height} ${isJpeg?'JPEG':'PNG'}`);
+    let exportCanvas=exportRenderer.domElement;
+    if(renderWidth!==state.width||renderHeight!==state.height){
+      const outputCanvas=document.createElement('canvas');outputCanvas.width=targetWidth;outputCanvas.height=targetHeight;
+      const context=outputCanvas.getContext('2d');context.imageSmoothingEnabled=true;context.imageSmoothingQuality='high';
+      context.drawImage(exportRenderer.domElement,0,0,targetWidth,targetHeight);exportCanvas=outputCanvas;
+    }
+    const blob=await new Promise((resolve,reject)=>exportCanvas.toBlob(value=>value?resolve(value):reject(new Error('图片生成失败')),mime,isJpeg?0.92:undefined));
+    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`photo-wall-${targetWidth}x${targetHeight}.${extension}`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1500);notify(`已导出 ${targetWidth} × ${targetHeight} ${isJpeg?'JPEG':'PNG'}`);
   }catch{notify('导出失败，请重试')}
   finally{
-    scene.background=oldBackground;camera.aspect=oldAspect;camera.updateProjectionMatrix();
+    scene.background=oldBackground;camera.aspect=oldAspect;if(isOrthographicCamera&&oldOrtho){camera.left=oldOrtho.left;camera.right=oldOrtho.right;camera.top=oldOrtho.top;camera.bottom=oldOrtho.bottom}camera.updateProjectionMatrix();
     await restorePreviewTextures().catch(()=>{});render();button.disabled=false;button.classList.remove('exporting');if(label)label.textContent='导出';
   }
 }
 
 updateDimensionUI();updateSlots();updateModeUI();resize();new ResizeObserver(resize).observe(host);window.addEventListener('resize',resize);
+
+
+
+
 
 
