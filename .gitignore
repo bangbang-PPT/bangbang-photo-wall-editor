@@ -2,3 +2,5 @@ node_modules/
 dist/
 .vite/
 tmp/
+preview-server.log
+preview-server-error.log
