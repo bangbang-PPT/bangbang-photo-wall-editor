@@ -2228,7 +2228,10 @@ function applyLanguage(value){
 document.querySelectorAll('[data-language-choice]').forEach(button=>button.addEventListener('click',()=>applyLanguage(button.dataset.languageChoice)));
 const savedLanguage=localStorage.getItem(LANGUAGE_KEY)||'zh';applyLanguage(savedLanguage);setTimeout(()=>applyLanguage(savedLanguage),250);
 
-const savedTheme=localStorage.getItem('photo-wall-theme');if(savedTheme==='light')document.body.classList.add('light-theme');if(savedTheme)document.querySelector(`[data-theme-choice="${savedTheme}"]`)?.classList.add('active');
+const savedTheme=localStorage.getItem('photo-wall-theme');
+const activeTheme=savedTheme==='light'?'light':'dark';
+if(activeTheme==='light')document.body.classList.add('light-theme');
+document.querySelectorAll('[data-theme-choice]').forEach(item=>item.classList.toggle('active',item.dataset.themeChoice===activeTheme));
 $('#projectButton').addEventListener('click',()=>{const menu=$('#projectMenu');const open=!menu.classList.contains('open');menu.classList.toggle('open',open);menu.setAttribute('aria-hidden',String(!open));if(open){renderProjectList();setTimeout(()=>applyLanguage(currentLanguage),0)}});
 $('#closeProjectMenu').addEventListener('click',closeProjectMenu);
 $('#createProjectButton').addEventListener('click',()=>{const input=$('#projectNameInput');createProject(input.value);input.value=''});
