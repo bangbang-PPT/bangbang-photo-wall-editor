@@ -2,7 +2,7 @@
 
 本项目是 Vite 静态网站。线上只发布构建后的 `dist` 文件夹，不上传源码目录，也不需要常驻 Node 服务。
 
-## 每次修改后的流程
+## 默认修改流程
 
 ### 1. 本地开发和检查
 
@@ -37,13 +37,17 @@ git commit -m "描述本次修改"
 
 不要提交 `node_modules`、`dist`、预览日志或临时文件；这些已在 `.gitignore` 中排除。
 
-### 5. 部署到 Cloudflare Pages
+默认修改到 Git 提交即可，**不要因为每次修改就自动部署**。只有你明确要求“部署”“同步线上”或类似指令时，才执行下面的 Cloudflare 部署步骤。
+
+## 明确要求部署时
+
+### 1. 部署到 Cloudflare Pages
 
 ```powershell
 pnpm deploy:pages
 ```
 
-该命令会先重新构建，再把 `dist` 上传到 Cloudflare Pages 项目 `photo-wall-editor`。
+该命令会先重新构建，再把 `dist` 上传到 Cloudflare Pages 项目 `photo-wall-editor`。没有收到明确部署指令时不要运行它。
 
 如果 Cloudflare 登录凭据失效，先执行：
 
@@ -51,7 +55,7 @@ pnpm deploy:pages
 pnpm dlx wrangler login
 ```
 
-### 6. 线上验证
+### 2. 线上验证
 
 打开线上地址：
 
