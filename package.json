@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "deploy:pages": "pnpm build && pnpm dlx wrangler pages deploy ./dist --project-name photo-wall-editor"
   },
   "keywords": [],
   "author": "",
