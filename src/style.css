@@ -198,7 +198,7 @@
 .zoom-value span{padding-left:1px}
 #zoomLabel{display:inline-block;padding:0 1px;text-align:right;color:#b5b5bd;font-variant-numeric:tabular-nums;cursor:text;outline:0}
 #zoomLabel:focus{color:#fff;background:#2a2a33;border-radius:3px}
-.settings-control{position:relative;margin-left:auto}
+.settings-control{position:relative;margin-left:auto;z-index:13}
 .theme-button{margin-left:0;display:grid;place-items:center;padding:0;width:32px}
 .theme-button svg{width:18px;height:18px;display:block}
 .settings-menu{display:none;position:absolute;top:40px;right:0;width:440px;padding:18px 24px;border:1px solid #3b3b45;border-radius:10px;background:#1d1d23;box-shadow:0 14px 34px #0009;z-index:12}
@@ -214,6 +214,8 @@
 .author-card>b,.author-card>strong{display:block}.author-card>b{color:#d9d9df;font-size:11px}.author-card>strong{margin-top:6px;color:#eef0ff;font-size:13px}.author-card p{margin:7px 0 10px;line-height:1.6;color:#858590}
 .reward-placeholder{height:92px;border:1px dashed #555562;border-radius:7px;display:grid;place-items:center;color:#777783;background:#17171c;font-size:10px}
 .settings-menu{max-height:calc(100vh - 64px);overflow:auto}
+.settings-menu-backdrop{position:fixed;inset:0;z-index:11;background:#08080cb8;backdrop-filter:blur(3px)}
+body.light-theme .settings-menu-backdrop{background:#5f667533}
 .qr-grid{display:grid;grid-template-columns:1fr;gap:14px;margin-top:10px}.qr-grid figure{margin:0;min-width:0}.qr-grid img{display:block;width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;background:#fff}.qr-grid figure:last-child img{aspect-ratio:1.88;object-fit:contain}.qr-grid figcaption{margin-top:5px;text-align:center;color:#a7a7b0;font-size:9px}
 .author-profile{display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:16px;align-items:center;margin-top:8px}.author-copy strong{display:block}.author-copy p{margin:7px 0 0}.author-profile figure,.reward-qr figure{margin:0}.author-profile img{display:block;width:150px;height:150px;object-fit:cover;border-radius:6px;background:transparent}.author-profile figcaption,.reward-qr figcaption{margin-top:5px;text-align:center;color:#a7a7b0;font-size:9px}.reward-qr{margin-top:14px;padding-top:12px;border-top:1px solid #303039}.reward-qr img{display:block;width:100%;height:auto;object-fit:initial;border-radius:6px;background:transparent}
 .author-card>b{font-size:12px;color:#9ba2b0}.author-copy strong{font-size:18px;line-height:1.2;color:#e8eaf0}.author-copy p{font-size:12px;line-height:1.65;color:#9ba2b0}
@@ -403,3 +405,5 @@ body.light-theme .brand-notice-dot{box-shadow:0 0 0 2px #f7f8fb,0 0 8px #ef4d5b9
 .brand-notice-dot{transform-origin:center;animation:brand-notice-pulse 1.8s ease-in-out infinite}
 body.light-theme .brand-notice-dot{animation-name:brand-notice-pulse-light}
 @keyframes brand-notice-pulse-light{0%,100%{transform:scale(1);box-shadow:0 0 0 2px #f7f8fb,0 0 5px #ef4d5b66}50%{transform:scale(1.55);box-shadow:0 0 0 2px #f7f8fb,0 0 10px #ef4d5bcc}}
+/* Header popovers use the same anchored placement as the settings panel. */
+.export-confirm-backdrop{display:block;padding:56px 16px 16px}.export-confirm-backdrop .export-dialog{margin-left:auto;margin-right:0}
