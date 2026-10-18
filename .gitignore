@@ -7,7 +7,11 @@ preview-server-error.log
 
 # Local-only deployment and handoff notes (never publish)
 /DEPLOYMENT.md
+/DEPLOY*.md
+/deploy*.md
 /HANDOFF.md
+/*部署*.md
+/*交接*.md
 /部署情况与后续更新计划.md
 /AGENTS.md
 /.wrangler/
