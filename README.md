@@ -6,10 +6,6 @@
 
 [![播放图片墙展示视频](docs/media/photo-wall-editor-poster.jpg)](https://photo-wall-editor.pages.dev/showcase/)
 
-<sub>点击封面即可在浏览器中直接播放展示视频。</sub>
-
-![图片墙工作室总览](docs/screenshots/overview-workspace.png)
-
 ## 先看懂界面
 
 编辑器按“选择布局 → 调整画布 → 编辑图片 → 制作动画 → 导出”的顺序组织。左侧负责构图，中间负责观察，右侧负责参数和图片，底部负责时间轴。
