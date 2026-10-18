@@ -4,6 +4,15 @@
 
 [在线体验](https://photo-wall-editor.pages.dev) · [GitHub 仓库](https://github.com/bangbang-PPT/photo-wall-editor)
 
+**在线地址：** <https://photo-wall-editor.pages.dev/>
+
+<video controls muted loop playsinline preload="metadata" poster="docs/media/photo-wall-editor-poster.jpg" width="100%">
+  <source src="docs/media/photo-wall-editor.webm" type="video/webm">
+  <a href="https://raw.githubusercontent.com/bangbang-PPT/photo-wall-editor/main/docs/media/photo-wall-editor.webm">打开 WebM 展示视频</a>
+</video>
+
+<sub>展示视频：从布局选择、画布预览到参数调整和动画时间轴的完整流程。若 GitHub 未直接显示播放器，可打开 <a href="https://raw.githubusercontent.com/bangbang-PPT/photo-wall-editor/main/docs/media/photo-wall-editor.webm">WebM 视频文件</a>。</sub>
+
 ![图片墙工作室总览](docs/screenshots/overview-workspace.png)
 
 ## 先看懂界面
