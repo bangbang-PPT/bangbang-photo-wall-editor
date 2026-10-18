@@ -18,11 +18,13 @@ function editorCamera() {
     const state={mode:'isometric',count:24,rows:5,columns:5,cardWidth:240,cardHeight:240,
       columnGap:39,rowGap:39,gridStagger:0,gridStaggerDirection:'horizontal',
       tiltX:0,tiltY:0,tiltZ:45,tilt:45,rotation:0,zoom:220,fov:38,radius:4.2};
-    const isRingMode=()=>false,isGridMode=()=>true,isIsometricMode=()=>true;
+    const isRingMode=()=>false,isGridMode=()=>true,isIsometricMode=()=>true,isPlanarMode=()=>false,isConcentricMode=()=>false;
     const WORLD_X_AXIS=new THREE.Vector3(1,0,0),WORLD_Y_AXIS=new THREE.Vector3(0,1,0),WORLD_Z_AXIS=new THREE.Vector3(0,0,1);
     const worldTiltQuaternion=new THREE.Quaternion(),cameraTarget=new THREE.Vector3();
     const host={getBoundingClientRect:()=>({width:960,height:540})};
     const renderer={setSize(){}};
+    const applyingAnimationKeyframes=false;
+    function syncPreviewRendererQuality(){}
     let camera=new THREE.PerspectiveCamera(38,16/9,.1,80),isOrthographicCamera=false;
     let cameraHalfSpan=7,cameraDistance=20,lastCanvasSize={width:0,height:0};
     function updateTransforms(){fitCamera(true)}

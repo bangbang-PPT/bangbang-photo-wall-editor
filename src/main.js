@@ -1,6 +1,11 @@
 import * as THREE from 'three';
+import WebMWriter from 'webm-writer';
+import { BufferTarget, CanvasSource, Mp4OutputFormat, Output, Quality, WebMOutputFormat, canEncodeVideo } from 'mediabunny';
 import { ringCardPose, bloomCardPose, curvedCardPose, gridCardPose, CARD_WIDTH, CARD_HEIGHT, DESIGN_SCALE } from './ring-layout.js';
 import './style.css';
+import { freeGridLayout, regularGridLayout, nextGridSeed } from './free-grid-layout.js';
+import { roomCardPose, createRoomCardGeometry } from './room-layout.js';
+import { concentricLayout } from './concentric-layout.js';
 
 const DEFAULT_WALL_TILT = -55;
 const DEFAULT_CARD_WIDTH = CARD_WIDTH * DESIGN_SCALE;
@@ -17,10 +22,17 @@ const WALL_ROTATION = 0;
 const RESET_ICON_PATH = 'M632 14.464a32 32 0 0 1 43.328 13.12l26.368 49.28c7.872 14.72 15.04 28.096 19.264 38.656 2.24 5.44 4.672 12.544 5.376 20.16a40.96 40.96 0 0 1-8.896 30.336 41.216 41.216 0 0 1-28.672 14.4 77.76 77.76 0 0 1-21.056-1.536 515.008 515.008 0 0 1-44.416-11.904L621.632 166.4A384.64 384.64 0 0 0 512 150.656C304.896 150.656 138.688 313.344 138.688 512a350.72 350.72 0 0 0 49.664 180.288 32 32 0 1 1-54.976 32.768 414.72 414.72 0 0 1-58.688-213.12C74.688 276.224 271.36 86.72 512 86.72a448.704 448.704 0 0 1 133.056 20.032l-0.64-1.28L618.88 57.792a32 32 0 0 1 13.12-43.264z m214.72 273.344a32 32 0 0 1 43.84 11.136A414.72 414.72 0 0 1 949.312 512c0 235.776-196.672 425.344-437.312 425.344-44.416 0-87.36-6.464-127.872-18.496l-5.184-1.536 0.64 1.28 25.536 47.616a32 32 0 1 1-56.448 30.208l-26.368-49.28c-7.872-14.72-15.04-28.16-19.328-38.656a72.384 72.384 0 0 1-5.312-20.16 41.024 41.024 0 0 1 8.896-30.336 41.216 41.216 0 0 1 28.672-14.464c7.552-0.64 15.04 0.384 21.056 1.536 11.712 2.24 27.072 6.784 44.416 11.968l1.664 0.512c34.56 10.24 71.424 15.808 109.632 15.808 207.104 0 373.312-162.688 373.312-361.344a350.72 350.72 0 0 0-49.664-180.288 32 32 0 0 1 11.072-43.904z';
 const TILT_GIZMO_ICON_PATH = 'M92,157.93a7.34,7.34,0,0,1-3.13-.7L4.23,117.42a7.33,7.33,0,0,1,0-13.28L84.67,66.31V26.49L65.21,48.15a7.36,7.36,0,0,1-11.37-9.29l.48-.59L86.55,2.44l.59-.58A7.26,7.26,0,0,1,90.83.14L91.68,0H92a7.34,7.34,0,0,1,5.46,2.44l32.27,35.88a7.35,7.35,0,0,1-10.94,9.82L99.35,26.49V66.31l80.44,37.83a7.35,7.35,0,0,1,0,13.29l-84.65,39.8A7.34,7.34,0,0,1,92,157.93ZM26.52,111.69,92,142.46l67.4-31.68-60-28.26v26.8a7.35,7.35,0,0,1-14.7,0V82.52L26.54,109.88l.42-.1Z';
 const EFFECT_RESET_ICON_PATH = 'M958.72 225.856l-82.688 211.136-13.76 35.2c-3.776 9.728-14.784 14.528-24.512 10.688l-35.2-13.76L591.36 386.368C581.632 382.528 576.832 371.584 580.672 361.856l13.76-35.2c3.776-9.728 14.784-14.528 24.512-10.688l174.912 68.544c-50.56-124.416-171.584-212.672-314.112-212.672-187.84 0-340.16 152.32-340.16 340.16s152.256 340.16 340.16 340.16c148.032 0 273.6-94.72 320.384-226.752l79.296 0c-49.408 174.4-209.408 302.336-399.68 302.336C250.112 927.744 64 741.632 64 512s186.112-415.744 415.744-415.744c157.056 0 293.376 87.296 363.968 215.872l44.608-113.856c3.776-9.728 14.784-14.528 24.512-10.688l35.2 13.76C957.696 205.184 962.496 216.128 958.72 225.856z';
+const TIMELINE_PAUSE_ICON_PATH = 'M259.774512 0h-63.761861c-21.849302 0-39.566884 26.457302-39.566884 59.082419v905.823255c0 32.625116 17.717581 59.082419 39.566884 59.082419h63.761861c21.849302 0 39.566884-26.457302 39.566883-59.082419V59.082419C299.341395 26.457302 281.623814 0 259.774512 0z m568.20093 0h-63.761861c-21.849302 0-39.566884 26.457302-39.566883 59.082419v905.823255c0 32.625116 17.717581 59.082419 39.566883 59.082419h63.761861c21.849302 0 39.566884-26.457302 39.566884-59.082419V59.082419C867.542326 26.457302 849.824744 0 827.975442 0z m15.741023 0';
 const PREVIEW_QUALITY_KEY = 'photo-wall-preview-quality-v1';
 // Standard keeps uploaded images light enough for smooth dragging while
 // staying large enough for the canvas preview. Original keeps the stored blob.
-const PREVIEW_QUALITY_LEVELS = {standard:{label:'标准',maxDimension:400},original:{label:'原图',maxDimension:null}};
+const PREVIEW_QUALITY_LEVELS = {
+  // Fast preview trades animation refresh rate for responsiveness while
+  // keeping the same texture and canvas clarity as the standard preview.
+  fast:{label:'快速',maxDimension:400,pixelRatioCap:1.5},
+  standard:{label:'标准',maxDimension:400,pixelRatioCap:1.5},
+  original:{label:'原图',maxDimension:null,pixelRatioCap:1.5},
+};
 let previewQuality = (()=>{try{const value=localStorage.getItem(PREVIEW_QUALITY_KEY);return PREVIEW_QUALITY_LEVELS[value]?value:'standard'}catch{return 'standard'}})();
 
 const ratios = [
@@ -29,29 +41,71 @@ const ratios = [
 ];
 const RESOLUTION_PRESETS={'1K':1024,'2K':1920,'4K':3840,'8K':7680};
 const DEFAULT_RESOLUTION_PRESET='2K';
+const BLOOM_VIDEO_RESOLUTIONS={'720p':1280,'1080p':1920,'2K':2560,'4K':3840,'8K':7680};
+function bloomVideoBitrate(quality,width,height,fps){
+  // High-resolution exports need more bits to preserve fine photo details.
+  // Keep the smaller presets on the existing compact range while giving 4K
+  // and 8K higher floors and ceilings for visibly cleaner motion and edges.
+  if(quality==='8K')return Math.min(240_000_000,Math.max(64_000_000,Math.round(width*height*fps*.16)));
+  if(quality==='4K')return Math.min(100_000_000,Math.max(24_000_000,Math.round(width*height*fps*.18)));
+  return Math.min(40_000_000,Math.max(8_000_000,Math.round(width*height*fps*.085)));
+}
 const RATIO_MIN=1;
 const RATIO_MAX=100;
 let currentLanguage='zh';
 const state = {
   mode: 'ring', fixedEdge: 'left', imageDirection: 'up', width: 1920, height: 1080, cardWidth: DEFAULT_CARD_WIDTH, cardHeight: DEFAULT_CARD_HEIGHT, count: 12, ringCount: 12, rows: 3, columns: 10, radius: 4.2, spacing: 36, rowGap: 28, columnGap: 28, stagger: 50, curveBend: -120, corner: 20, contentRotation: 0, backBrightness: 30, wallTilt: DEFAULT_WALL_TILT, tilt: 0, rotation: 50, fov: 18, viewOffsetX: 0, viewOffsetY: 0,
-  selected: 0, zoom: 130, photos: [], projectId: null, projectName: '默认项目', resolutionPreset: DEFAULT_RESOLUTION_PRESET, ratioWidth: 16, ratioHeight: 9, staggerDirection: 'horizontal', tiltAxis: 'x', tiltX: DEFAULT_WALL_TILT, tiltY: 0, tiltZ: 0, cameraAxis: 'x', gridStagger: 0, gridStaggerDirection: 'horizontal', gridTiltZ: 0, photoOpacity: 100, decorativeWallEnabled: true, decorativeWallOpacity: 30, decorativeWallProgress: 0,
+  selected: 0, zoom: 130, photos: [], projectId: null, projectName: '默认项目', resolutionPreset: DEFAULT_RESOLUTION_PRESET, ratioWidth: 16, ratioHeight: 9, staggerDirection: 'horizontal', staggerHorizontal: 50, staggerVertical: 50, tiltAxis: 'x', tiltX: DEFAULT_WALL_TILT, tiltY: 0, tiltZ: 0, cameraAxis: 'x', gridStagger: 0, gridStaggerDirection: 'horizontal', gridTiltZ: 0, photoOpacity: 100, decorativeWallEnabled: true, decorativeWallOpacity: 30, decorativeWallProgress: 0,
 };
 
-const CURVED_MODES = ['curved','curvedHorizontal','single'];
+const CURVED_MODES = ['curved','curvedHorizontal','single','room'];
 const RING_MODES = ['ring','bloom'];
-const PHOTO_MODES = ['ring','bloom','curved','curvedHorizontal','single','grid','isometric'];
-const DEFAULT_PHOTO_COUNTS = {ring:12,bloom:12,curved:24,curvedHorizontal:24,single:28,grid:24,isometric:24};
+const PHOTO_MODES = ['ring','bloom','curved','curvedHorizontal','single','grid','isometric','freeGrid','regularGrid','room','concentric'];
+const DEFAULT_PHOTO_COUNTS = {ring:12,bloom:12,curved:24,curvedHorizontal:24,single:28,grid:24,isometric:24,freeGrid:12,regularGrid:12,room:60,concentric:54};
 const PHOTO_SETS_VERSION = 6;
+const MAX_PHOTO_COUNT = 72;
+const ROOM_MAX_PHOTO_COUNT = 96;
 const isCurvedMode = (mode=state.mode) => CURVED_MODES.includes(mode);
 const isIsometricMode = (mode=state.mode) => mode==='isometric';
 const isGridMode = (mode=state.mode) => mode==='grid'||isIsometricMode(mode);
+const isPlanarMode = (mode=state.mode) => mode==='freeGrid'||mode==='regularGrid';
+const isRoomMode = (mode=state.mode) => mode==='room';
+const isConcentricMode = (mode=state.mode) => mode==='concentric';
+const photoCountLimit = (mode=state.mode) => isRoomMode(mode)||isConcentricMode(mode)?ROOM_MAX_PHOTO_COUNT:MAX_PHOTO_COUNT;
 const isRingMode = (mode=state.mode) => RING_MODES.includes(mode);
-const MODE_SETTING_KEYS = ['cardWidth','cardHeight','ringCount','rows','columns','radius','spacing','rowGap','columnGap','spacingMode','stagger','staggerDirection','curveBend','corner','contentRotation','imageDirection','backBrightness','photoOpacity','decorativeWallEnabled','decorativeWallOpacity','decorativeWallProgress','wallTilt','tiltAxis','tiltX','tiltY','tiltZ','tilt','rotation','cameraAxis','fov','zoom','viewOffsetX','viewOffsetY','gridStagger','gridStaggerDirection','gridTiltZ','fixedEdge'];
+function staggerValueFor(source=state){
+  const key=source?.staggerDirection==='vertical'?'staggerVertical':'staggerHorizontal';
+  const axisValue=Number(source?.[key]);
+  if(Number.isFinite(axisValue))return THREE.MathUtils.clamp(Math.round(axisValue),0,100);
+  const legacy=Number(source?.stagger);
+  return THREE.MathUtils.clamp(Number.isFinite(legacy)?Math.round(legacy):50,0,100);
+}
+const MODE_SETTING_KEYS = ['cardWidth','cardHeight','ringCount','rows','columns','radius','spacing','rowGap','columnGap','spacingMode','stagger','staggerHorizontal','staggerVertical','staggerDirection','curveBend','corner','contentRotation','imageDirection','backBrightness','photoOpacity','decorativeWallEnabled','decorativeWallOpacity','decorativeWallProgress','wallTilt','tiltAxis','tiltX','tiltY','tiltZ','tilt','rotation','cameraAxis','fov','zoom','viewOffsetX','viewOffsetY','gridStagger','gridStaggerDirection','gridTiltZ','fixedEdge','freeLayoutVersion','freeDirection','freeRatio','freeGap','freeEdge','freeSeed','planarDefaultsVersion','roomWallStagger','concentricFitRadius','concentricOuterRadius','concentricHeightStep'];
 const MODE_SETTINGS_VERSION=36;
 const ISOMETRIC_DEFAULTS_VERSION=16;
 const BLOOM_DEFAULTS_VERSION=3;
 const RING_DEFAULTS_VERSION=1;
+const ROOM_DEFAULTS_VERSION=5;
+const CONCENTRIC_DEFAULTS_VERSION=3;
 function createModeSettings(mode){
+  if(mode==='concentric')return {
+    ...createModeSettings('ring'),cardHeight:120,corner:15,rows:4,columnGap:32,rowGap:124,
+    radius:2.03,concentricOuterRadius:5.75,concentricFitRadius:9,concentricHeightStep:66,stagger:0,staggerHorizontal:0,staggerVertical:0,contentRotation:0,
+    rotation:0,tilt:-30,cameraAxis:'x',wallTilt:0,tiltAxis:'x',tiltX:0,tiltY:0,tiltZ:0,fov:47,zoom:250,
+    viewOffsetX:0,viewOffsetY:160,cameraTarget:[0,1.6,0],imageDirection:'up',photoOpacity:100,
+    concentricDefaultsVersion:CONCENTRIC_DEFAULTS_VERSION,
+    backBrightness:100,
+  };
+  if(mode==='regularGrid')return {...createModeSettings('freeGrid'),freeEdge:0,planarDefaultsVersion:1};
+  if(mode==='room')return {
+    ...createModeSettings('curved'),corner:15,rows:5,columns:12,spacingMode:'all',columnGap:8,rowGap:8,stagger:0,staggerHorizontal:0,staggerVertical:0,roomWallStagger:0,staggerDirection:'vertical',roomDefaultsVersion:ROOM_DEFAULTS_VERSION,
+    wallTilt:0,tiltAxis:'x',tiltX:0,tiltY:0,tiltZ:0,tilt:0,rotation:0,cameraAxis:'x',fov:62,zoom:140,viewOffsetX:0,viewOffsetY:0,cameraTarget:[0,0,0],
+  };
+  if(mode==='freeGrid')return {
+    ...createModeSettings('grid'),corner:15,planarDefaultsVersion:2,wallTilt:0,tiltAxis:'z',tiltX:0,tiltY:0,tiltZ:0,
+    tilt:0,rotation:0,fov:0,zoom:100,freeDirection:'center',freeRatio:'mixed',freeLayoutVersion:3,freeGap:16,
+    freeEdge:65,freeSeed:1,
+  };
   if(isIsometricMode(mode))return {
     isometricDefaultsVersion:ISOMETRIC_DEFAULTS_VERSION,cardWidth:240,cardHeight:240,
     ringCount:24,rows:5,columns:5,radius:4.2,spacing:36,rowGap:39,columnGap:39,spacingMode:'all',stagger:0,staggerDirection:'horizontal',curveBend:0,
@@ -67,7 +121,7 @@ function createModeSettings(mode){
   if(isCurvedMode(mode)){
     const settings={
     cardWidth:DEFAULT_CARD_WIDTH,cardHeight:DEFAULT_CARD_HEIGHT,
-    ringCount:12,rows:3,columns:10,radius:4.2,spacing:36,rowGap:28,columnGap:28,spacingMode:'all',stagger:50,staggerDirection:'horizontal',curveBend:-120,
+    ringCount:12,rows:3,columns:10,radius:4.2,spacing:36,rowGap:28,columnGap:28,spacingMode:'all',stagger:50,staggerHorizontal:50,staggerVertical:50,staggerDirection:'horizontal',curveBend:-120,
     corner:20,contentRotation:0,imageDirection:'up',backBrightness:30,photoOpacity:100,wallTilt:0,tiltAxis:'x',tiltX:0,tiltY:0,tiltZ:0,tilt:0,rotation:0,cameraAxis:'x',fov:38,zoom:100,viewOffsetX:0,viewOffsetY:0,cameraTarget:[0,0,0],
     };
     if(mode==='single'){
@@ -80,6 +134,8 @@ function createModeSettings(mode){
       settings.rows=4;
       settings.columns=7;
       settings.stagger=0;
+      settings.staggerHorizontal=0;
+      settings.staggerVertical=0;
       settings.curveBend=-65;
       settings.corner=26;
       settings.backBrightness=39;
@@ -121,10 +177,10 @@ function createModeSettings(mode){
   };
   return settings;
 }
-const modeSettings={ring:createModeSettings('ring'),bloom:createModeSettings('bloom'),curved:createModeSettings('curved'),curvedHorizontal:createModeSettings('curvedHorizontal'),single:createModeSettings('single'),grid:createModeSettings('grid'),isometric:createModeSettings('isometric')};
+const modeSettings=Object.fromEntries(PHOTO_MODES.map(mode=>[mode,createModeSettings(mode)]));
 
 function samplePhoto(index) {
-  return `/photos/sample-${String(index % 12 + 1).padStart(2,'0')}.jpg`;
+  return `/photos/sample-${String(index % 12 + 1).padStart(2,'0')}.svg`;
 }
 state.photos = Array.from({length:state.count}, (_,i)=>({src:samplePhoto(i),name:`示例照片 ${String(i+1).padStart(2,'0')}`,sample:true}));
 state.photosByMode = {
@@ -135,6 +191,10 @@ state.photosByMode = {
   single:sampleProjectPhotos(DEFAULT_PHOTO_COUNTS.single),
   grid:sampleProjectPhotos(DEFAULT_PHOTO_COUNTS.grid),
   isometric:sampleProjectPhotos(DEFAULT_PHOTO_COUNTS.isometric),
+  freeGrid:sampleProjectPhotos(DEFAULT_PHOTO_COUNTS.freeGrid),
+  regularGrid:sampleProjectPhotos(DEFAULT_PHOTO_COUNTS.regularGrid),
+  room:sampleProjectPhotos(DEFAULT_PHOTO_COUNTS.room),
+  concentric:sampleProjectPhotos(DEFAULT_PHOTO_COUNTS.concentric),
 };
 
 function saveActivePhotoSet(mode=state.mode){
@@ -142,7 +202,7 @@ function saveActivePhotoSet(mode=state.mode){
 }
 function loadPhotoSet(mode, fallbackCount=DEFAULT_PHOTO_COUNTS[mode]||12){
   const existing=Array.isArray(state.photosByMode?.[mode])?state.photosByMode[mode]:[];
-  const count=Math.max(3,Math.min(72,existing.length||fallbackCount||12));
+  const count=Math.max(3,Math.min(photoCountLimit(mode),existing.length||fallbackCount||12));
   state.photos=existing.length?existing:sampleProjectPhotos(count);
   // The isometric sample cards need a small upward image framing correction
   // so their built-in captions stay inside the card. Keep the editor value at
@@ -157,7 +217,7 @@ const app = document.querySelector('#app');
 app.innerHTML = `
 <header class="topbar">
   <a class="brand" id="brandSettingsTrigger" href="#" aria-label="设置" aria-expanded="false"><span class="brand-mark"><i></i><i></i><i></i><i></i></span><span>图片墙</span><span class="brand-notice-dot" aria-hidden="true"></span></a>
-  <span class="top-divider"></span><button class="top-button" id="projectButton"><span class="folder-icon" aria-hidden="true"><svg viewBox="0 0 181.67 164.91"><path d="M25,164.91A13.33,13.33,0,0,1,11.8,153.34L0,62.48a5.13,5.13,0,0,1,4.44-5.73,4.73,4.73,0,0,1,.65,0H20.41V13.29A13.3,13.3,0,0,1,33.69,0h25.2a13.32,13.32,0,0,1,10,4.57l14.73,17a3,3,0,0,0,2.29,1h62A13.3,13.3,0,0,1,161.26,35.9V56.71h15.29a5.14,5.14,0,0,1,5.08,5.78l-11.76,90.86a13.33,13.33,0,0,1-13.16,11.56H25Zm-3-12.9a3,3,0,0,0,2.54,2.6l.4,0H156.71a3.06,3.06,0,0,0,3-2.64l11-85.07H10.94ZM33.69,10.23a3,3,0,0,0-3,3V56.69H151V35.89a3.05,3.05,0,0,0-2.49-3l-.49-.06H86a13.28,13.28,0,0,1-10-4.57l-14.74-17a3,3,0,0,0-2.27-1.06Z" fill="currentColor"></path></svg></span>项目</button><span class="top-divider small"></span>
+  <span class="top-divider"></span><button class="top-button" id="projectButton"><span class="folder-icon" aria-hidden="true"><svg viewBox="0 0 181.67 164.91"><path d="M25,164.91A13.33,13.33,0,0,1,11.8,153.34L0,62.48a5.13,5.13,0,0,1,4.44-5.73,4.73,4.73,0,0,1,.65,0H20.41V13.29A13.3,13.3,0,0,1,33.69,0h25.2a13.32,13.32,0,0,1,10,4.57l14.73,17a3,3,0,0,0,2.29,1h62A13.3,13.3,0,0,1,161.26,35.9V56.71h15.29a5.14,5.14,0,0,1,5.08,5.78l-11.76,90.86a13.33,13.33,0,0,1-13.16,11.56H25Zm-3-12.9a3,3,0,0,0,2.54,2.6l.4,0H156.71a3.06,3.06,0,0,0,3-2.64l11-85.07H10.94ZM33.69,10.23a3,3,0,0,0-3,3V56.69H151V35.89a3.05,3.05,0,0,0-2.49-3l-.49-.06H86a13.28,13.28,0,0,1-10-4.57l-14.74-17a3,3,0,0,0-2.27-1.06Z" fill="currentColor"></path></svg></span>项目</button><div class="history-controls" role="group" aria-label="历史记录"><button class="icon-button history-button" id="undoButton" type="button" aria-label="撤销" title="撤销">↶</button><button class="icon-button history-button" id="redoButton" type="button" aria-label="重做" title="重做">↷</button></div><span class="top-divider small"></span>
   <div class="project-menu" id="projectMenu" aria-hidden="true">
     <div class="project-menu-heading"><b>项目</b><button id="closeProjectMenu" type="button" aria-label="关闭">×</button></div>
     <div class="project-create"><input id="projectNameInput" type="text" maxlength="32" placeholder="新项目名称"><button id="createProjectButton" type="button">新建</button></div>
@@ -169,46 +229,60 @@ app.innerHTML = `
 </header>
 <main class="workspace">
   <aside class="preset-rail">
-    <div class="rail-heading">3D透视 <span class="rail-count">05</span></div>
+    <div class="rail-heading">3D透视 <span class="rail-count">07</span></div>
     <div class="preset-grid">
       <button class="preset-card selected" id="ringPreset"><span class="preset-art" data-preview-mode="ring"></span><span class="preset-title">环绕弯曲</span></button>
       <button class="preset-card" id="bloomPreset"><span class="preset-art" data-preview-mode="bloom"></span><span class="preset-title">环形绽放</span></button>
       <button class="preset-card" id="curvedPreset"><span class="preset-art" data-preview-mode="curved"></span><span class="preset-title">上下弧形墙</span></button>
       <button class="preset-card" id="curvedHorizontalPreset"><span class="preset-art" data-preview-mode="curvedHorizontal"></span><span class="preset-title">左右弧形墙</span></button>
       <button class="preset-card" id="singlePreset"><span class="preset-art" data-preview-mode="single"></span><span class="preset-title">单侧弯曲</span></button>
+      <button class="preset-card" id="roomPreset"><span class="preset-art" data-preview-mode="room"></span><span class="preset-title">四面展廊</span></button>
+      <button class="preset-card" id="concentricPreset"><span class="preset-art" data-preview-mode="concentric"></span><span class="preset-title">同心环绕墙</span></button>
     </div>
-    <div class="rail-heading grid-rail-heading">网格 <span class="rail-count">02</span></div>
+    <div class="rail-heading grid-rail-heading">网格 <span class="rail-count">04</span></div>
     <div class="preset-grid">
       <button class="preset-card" id="gridPreset"><span class="preset-art grid-art horizontal-art" data-preview-mode="grid"></span><span class="preset-title">倾斜网格墙</span></button>
       <button class="preset-card" id="isometricPreset"><span class="preset-art grid-art horizontal-art" data-preview-mode="isometric"></span><span class="preset-title">等距45度</span></button>
+      <button class="preset-card" id="freeGridPreset"><span class="preset-art" data-preview-mode="freeGrid"></span><span class="preset-title">自由网格墙</span></button>
+      <button class="preset-card" id="regularGridPreset"><span class="preset-art" data-preview-mode="regularGrid"></span><span class="preset-title">规整网格墙</span></button>
     </div>
   </aside>
   <section class="stage-column">
     <div class="stage" id="stage">
-      <div class="stage-center" id="stageCenter"><div class="scene-frame" id="sceneFrame"><div id="renderHost"></div><svg class="tilt-gizmo" id="tiltGizmo" viewBox="0 0 1000 700" preserveAspectRatio="none" aria-hidden="true"><line class="tilt-gizmo-axis" data-gizmo-axis="x" x1="500" y1="350" x2="680" y2="350"></line><line class="tilt-gizmo-axis" data-gizmo-axis="y" x1="500" y1="350" x2="500" y2="170"></line><line class="tilt-gizmo-axis" data-gizmo-axis="z" x1="500" y1="350" x2="400" y2="450"></line><text data-gizmo-label="x" x="692" y="350">X</text><text data-gizmo-label="y" x="500" y="155">Y</text><text data-gizmo-label="z" x="386" y="464">Z</text></svg><button class="tilt-gizmo-reset" id="tiltGizmoReset" type="button" aria-label="重置当前效果" title="重置当前效果"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="${EFFECT_RESET_ICON_PATH}" fill="currentColor"></path></svg></button><button class="tilt-gizmo-toggle" id="tiltGizmoToggle" type="button" aria-label="显示三轴辅助线" aria-pressed="false" title="显示三轴辅助线"><svg viewBox="0 0 184 157.93" aria-hidden="true"><path d="${TILT_GIZMO_ICON_PATH}" fill="currentColor"></path></svg></button></div><div class="stage-label"><span class="live-dot"></span>实时预览</div></div>
+      <div class="stage-top-bar"><div class="preview-tip" id="previewTip"><kbd>左键拖动</kbd> 360度查看 · <kbd>Alt + 左键</kbd> 平移视角 · <kbd>滚轮</kbd> 缩放照片 <span>·</span> <kbd>双击</kbd> 选中并替换</div><span class="preview-resolution" id="resolutionLabel">1920 × 1080 px</span></div>
+      <div class="stage-center" id="stageCenter"><div class="scene-frame" id="sceneFrame"><div id="renderHost"></div><svg class="tilt-gizmo" id="tiltGizmo" viewBox="0 0 1000 700" preserveAspectRatio="none" aria-hidden="true"><line class="tilt-gizmo-axis" data-gizmo-axis="x" x1="500" y1="350" x2="680" y2="350"></line><line class="tilt-gizmo-axis" data-gizmo-axis="y" x1="500" y1="350" x2="500" y2="170"></line><line class="tilt-gizmo-axis" data-gizmo-axis="z" x1="500" y1="350" x2="400" y2="450"></line><text data-gizmo-label="x" x="692" y="350">X</text><text data-gizmo-label="y" x="500" y="155">Y</text><text data-gizmo-label="z" x="386" y="464">Z</text></svg><button class="tilt-gizmo-reset" id="tiltGizmoReset" type="button" aria-label="重置当前效果" title="重置当前效果"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="${EFFECT_RESET_ICON_PATH}" fill="currentColor"></path></svg></button><button class="tilt-gizmo-toggle" id="tiltGizmoToggle" type="button" aria-label="显示三轴辅助线" aria-pressed="false" title="显示三轴辅助线"><svg viewBox="0 0 184 157.93" aria-hidden="true"><path d="${TILT_GIZMO_ICON_PATH}" fill="currentColor"></path></svg></button></div><div class="stage-actions"><div class="preview-quality-control" id="previewQualityControl"><button class="preview-quality-trigger" id="previewQualityTrigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="预览精度"><span id="previewQualityLabel">标准</span><i class="preview-quality-arrow" aria-hidden="true"></i></button><div class="preview-quality-menu" id="previewQualityMenu" role="listbox" aria-label="预览精度选项"><button type="button" role="option" data-preview-quality="standard" aria-selected="true">标准</button><button type="button" role="option" data-preview-quality="fast" aria-selected="false">快速</button><button type="button" role="option" data-preview-quality="original" aria-selected="false">原图</button></div></div><span class="stage-separator"></span><button id="fitButton">适合画布</button><span class="stage-separator"></span><button id="zoomOutButton">−</button><span id="zoomLabel" contenteditable="true" role="spinbutton" aria-label="视口缩放百分比">130%</span><button id="zoomInButton">＋</button></div></div>
       <div class="canvas-drop-hint">松开鼠标，将图片添加到照片墙</div>
-      <div class="stage-actions"><div class="preview-quality-control" id="previewQualityControl"><button class="preview-quality-trigger" id="previewQualityTrigger" type="button" aria-haspopup="listbox" aria-expanded="false" aria-label="预览精度"><span id="previewQualityLabel">标准</span><i class="preview-quality-arrow" aria-hidden="true"></i></button><div class="preview-quality-menu" id="previewQualityMenu" role="listbox" aria-label="预览精度选项"><button type="button" role="option" data-preview-quality="standard" aria-selected="true">标准</button><button type="button" role="option" data-preview-quality="original">原图</button></div></div><span class="stage-separator"></span><button id="fitButton">适合画布</button><span class="stage-separator"></span><button id="zoomOutButton">−</button><span id="zoomLabel" contenteditable="true" role="spinbutton" aria-label="视口缩放百分比">130%</span><button id="zoomInButton">＋</button></div>
     </div>
-    <footer class="preview-bar"><span class="preview-tip" id="previewTip"><kbd>左键拖动</kbd> 360度查看 · <kbd>Alt + 左键</kbd> 平移视角 · <kbd>滚轮</kbd> 缩放照片 <span>·</span> <kbd>双击</kbd> 选中并替换</span><span class="preview-resolution" id="resolutionLabel">1920 × 1080 px</span></footer>
+    <div class="timeline-keyframe-panel mode-hidden" id="timelineKeyframePanel" aria-hidden="true">
+      <button type="button" class="timeline-keyframe-panel-head" id="timelineKeyframeToggle" aria-expanded="true"><span>关键帧</span><output id="timelineKeyframeCount">0</output><i aria-hidden="true"></i></button>
+      <div class="timeline-keyframe-body" id="timelineKeyframeBody"><div class="timeline-keyframe-ruler" id="timelineKeyframeRuler"></div><div class="timeline-keyframe-rows" id="timelineKeyframeRows"></div><div class="timeline-playhead" id="timelinePlayhead" aria-hidden="true"></div></div>
+    </div>
+    <div class="entrance-timeline mode-hidden" id="entranceTimeline" aria-label="出现动画时间轴">
+      <div class="entrance-timeline-tools"><button type="button" class="timeline-animation-toggle" id="entranceAnimationToggle" aria-label="启用出现动画" aria-pressed="false" title="启用出现动画"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8L12 2zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16z" fill="currentColor"></path></svg><span>出现动画</span></button><div class="entrance-preset-choice" role="group" aria-label="出现动画预设"><button type="button" data-entrance-preset="radial" aria-pressed="true">中心展开</button><button type="button" data-entrance-preset="clockwise" aria-pressed="false">顺时展开</button><button type="button" data-entrance-preset="reverse" aria-pressed="false">由外到内</button><button type="button" data-entrance-preset="fadeScale" aria-pressed="false">淡入缩放</button><button type="button" data-entrance-preset="depth" aria-pressed="false">深度推进</button><button type="button" data-entrance-preset="scatter" aria-pressed="false">散落归位</button></div><div class="entrance-duration-choice" role="group" aria-label="出现动画时长"><button type="button" data-entrance-duration="1">1s</button><button type="button" data-entrance-duration="2">2s</button><button type="button" data-entrance-duration="3">3s</button><button type="button" data-entrance-duration="4">4s</button></div></div>
+      <button type="button" class="timeline-animation-toggle loop-animation-toggle" id="loopAnimationToggle" aria-label="启用循环动画" aria-pressed="false" title="启用循环动画"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M867.340007 319.228555c-51.538817-51.534723-120.027677-79.890538-192.814423-79.890538H388.423497v-54.715159c0-17.449417-11.967566-23.99653-26.734898-14.519692l-131.680065 85.000929c-14.705933 9.533121-14.583137 24.802896 0.314155 34.022885l131.114177 81.201393c14.772448 9.225105 26.986631 2.430352 26.986631-15.018041v-54.524825H674.588005c116.408243 0 211.132628 94.785783 211.132628 211.133652 0 19.317974-2.552126 38.388309-7.66354 56.705489-4.550643 16.389272 5.048993 33.282011 21.438265 37.766139 2.743484 0.874927 5.481851 1.245364 8.225335 1.245364 13.459546 0 25.802666-8.971325 29.601179-22.493294 6.541997-23.743774 9.784854-48.363498 9.784854-73.163323 0-72.7847-28.355815-141.335982-79.766719-192.750979zM816.547181 734.829018l-131.052778-81.202417c-14.896268-9.218966-27.110451-2.490727-27.110451 15.020089v54.40612H349.535815c-116.41029 0-211.133651-94.723362-211.133652-211.132628 0-40.756239 11.653411-80.32749 33.653471-114.417913 9.224082-14.273075 5.106298-33.339316-9.100262-42.562374-14.273075-9.16166-33.339316-5.048993-42.500976 9.156544-28.478612 44.060495-43.561122 95.223758-43.561122 147.884118 0 72.849168 28.355815 141.27663 79.828117 192.748932 51.477418 51.538817 119.965256 79.893608 192.814424 79.893609h308.910558v54.716182c0 17.509792 12.028964 24.051789 26.734898 14.519692l131.680065-85.063351c14.705933-9.475815 14.583137-24.742521-0.314155-33.966603z" fill="currentColor"></path></svg><span>循环动画</span></button>
+      <div class="entrance-mode-choice" role="group" aria-label="出现动画与循环动画关系"><button type="button" data-entrance-mode="overlap" aria-pressed="true" title="与循环动画同步">循环+出现</button><button type="button" data-entrance-mode="beforeLoop" aria-pressed="false" title="出现完成后开始循环">先出现</button></div>
+    </div>
+    <footer class="preview-bar">
+      <div class="animation-timeline mode-hidden" id="animationTimeline" aria-label="动画时间轴">
+        <button type="button" class="timeline-button" id="timelinePlayButton" aria-label="播放动画" title="播放动画">▶</button>
+        <button type="button" class="timeline-button timeline-reset" id="timelineResetButton" aria-label="回到起点" title="回到起点"><svg class="timeline-reset-icon" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M859.19809 175.323452L438.925202 512l420.272888 336.676548V175.323452z m21.311883 836.091401L312.513097 556.415756c-28.415844-22.771075-28.415844-66.060437 0-88.831512L880.509973 12.572347C917.706569-17.225889 972.797466 9.295565 972.797466 56.988103v910.023794c0 47.692538-55.090897 74.213992-92.287493 44.415756z m-702.908134-101.273043V113.85819a56.831687 56.831687 0 0 0-56.806087-56.870087A56.831687 56.831687 0 0 0 64.002464 113.85819v796.28362a56.831687 56.831687 0 0 0 56.806088 56.870087 56.831687 56.831687 0 0 0 56.793287-56.870087z" fill="currentColor"></path></svg></button>
+        <div class="timeline-track-wrap"><div class="timeline-track" id="timelineTrack"><div class="timeline-progress" id="timelineProgress"></div><div class="timeline-markers" id="timelineMarkers"></div></div><input class="timeline-scrubber" id="timelineScrubber" type="range" min="0" max="6" step="0.1" value="0" aria-label="动画时间"></div>
+        <label class="timeline-time" aria-label="动画时间"><output id="timelineCurrentTimeOutput">0.0 秒</output><span>/</span><span class="timeline-duration-select"><button type="button" id="timelineDurationButton" aria-haspopup="listbox" aria-expanded="false">6 秒<i aria-hidden="true"></i></button><span class="timeline-duration-menu" id="timelineDurationMenu" role="listbox" aria-label="动画时长"><button type="button" data-timeline-duration="2">2 秒</button><button type="button" data-timeline-duration="4">4 秒</button><button type="button" data-timeline-duration="6">6 秒</button><button type="button" data-timeline-duration="8">8 秒</button><button type="button" data-timeline-duration="10">10 秒</button><button type="button" data-timeline-duration="12">12 秒</button><button type="button" data-timeline-duration="15">15 秒</button><button type="button" data-timeline-duration="20">20 秒</button><button type="button" data-timeline-duration="30">30 秒</button><button type="button" data-timeline-duration="45">45 秒</button><button type="button" data-timeline-duration="60">60 秒</button></span></span></label>
+      </div>
+    </footer>
   </section>
   <aside class="inspector">
     <section class="inspector-section">
       <div class="ratio-grid" id="ratioGrid"></div>
       <div class="custom-size"><div class="custom-size-heading"><label>自定义比例</label><div class="ratio-input-row"><div class="ratio-slot"><input id="ratioWidthInput" type="number" min="1" max="100" step="0.1" value="16" aria-label="比例宽"></div><span class="ratio-separator">:</span><div class="ratio-slot"><input id="ratioHeightInput" type="number" min="1" max="100" step="0.1" value="9" aria-label="比例高"></div></div></div></div>
       <div class="background-row"><span>背景颜色</span><label class="color-control"><input type="color" id="bgColorInput" value="#101014"><span class="color-swatch"></span><span class="color-code">#101014</span></label></div>
-      <div class="background-image-row"><label class="background-upload" for="bgImageInput"><span>上传背景图片</span><small>支持 JPG、PNG、WebP</small><input id="bgImageInput" type="file" accept="image/*"></label><button id="applyBackgroundRatio" type="button" disabled title="应用图片比例到自定义比例" aria-label="应用图片比例到自定义比例"><svg class="background-action-icon ratio-action-icon" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M716.8 770.56H307.2c-29.696 0-53.76-24.064-53.76-53.76V307.2c0-29.696 24.064-53.76 53.76-53.76h409.6c29.696 0 53.76 24.064 53.76 53.76v409.6c0 29.696-24.064 53.76-53.76 53.76z m-396.8-66.56h384v-384h-384v384zM911.36 320c-18.432 0-33.28-14.848-33.28-33.28V145.92H737.28c-18.432 0-33.28-14.848-33.28-33.28s14.848-33.28 33.28-33.28h174.08c18.432 0 33.28 14.848 33.28 33.28v174.08c0 18.432-14.848 33.28-33.28 33.28zM911.36 944.64h-174.08c-18.432 0-33.28-14.848-33.28-33.28s14.848-33.28 33.28-33.28h140.8V737.28c0-18.432 14.848-33.28 33.28-33.28s33.28 14.848 33.28 33.28v174.08c0 18.432-14.848 33.28-33.28 33.28z" fill="currentColor"></path><path d="M112.64 320c-18.432 0-33.28-14.848-33.28-33.28V112.64c0-18.432 14.848-33.28 33.28-33.28h174.08c18.432 0 33.28 14.848-33.28 33.28s-14.848 33.28-33.28 33.28H145.92V286.72c0 18.432-14.848 33.28-33.28 33.28zM286.72 944.64H112.64c-18.432 0-33.28-14.848-33.28-33.28v-174.08c0-18.432 14.848-33.28 33.28-33.28s33.28 14.848 33.28 33.28v140.8H286.72c18.432 0 33.28 14.848 33.28 33.28s-14.848 33.28-33.28 33.28z" fill="currentColor"></path></svg></button><button id="clearBackgroundImage" type="button" disabled title="清除背景图片" aria-label="清除背景图片"><svg class="background-action-icon trash-icon" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M227.555556 312.888889m17.066666 0l534.755556 0q17.066667 0 17.066666 17.066667l0 0q0 17.066667-17.066666 17.066666l-534.755556 0q-17.066667 0-17.066666-17.066666l0 0q0-17.066667 17.066666-17.066667Z" fill="currentColor"></path><path d="M420.977778 233.244444m17.066666 0l147.911112 0q17.066667 0 17.066666 17.066667l0 0q0 17.066667-17.066666 17.066667l-147.911112 0q-17.066666 0-17.066666-17.066667l0 0q0-17.066667 17.066666-17.066667Z" fill="currentColor"></path><path d="M318.577778 335.644444v328.533334c0 49.737956 49.533156 91.517156 112.389689 92.427378l2.0992 0.017066h157.866666c63.146667 0 113.379556-41.233067 114.471823-90.794666l0.017066-1.649778V335.644444h34.133334v328.533334c0 69.961956-65.820444 125.457067-146.181689 126.560711l-2.440534 0.017067h-157.866666c-80.645689 0-147.279644-54.795378-148.599467-124.461512L284.444444 664.177778V335.644444h34.133334z" fill="currentColor"></path></svg></button></div>
+      <div class="background-image-row"><label class="background-upload" for="bgImageInput"><span class="background-upload-copy"><b>上传背景图片</b><small>支持 JPG、PNG、WebP</small></span><img id="backgroundUploadThumb" class="background-upload-thumb" alt=""><input id="bgImageInput" type="file" accept="image/*"></label><button id="editBackgroundImage" type="button" disabled title="调整背景图片" aria-label="调整背景图片"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M526.41 117.029v58.514a7.314 7.314 0 0 1-7.315 7.314H219.429a36.571 36.571 0 0 0-35.987 29.989l-0.585 6.583V804.57a36.571 36.571 0 0 0 29.989 35.987l6.583 0.585H804.57a36.571 36.571 0 0 0 35.987-29.989l0.585-6.583v-317.44a7.314 7.314 0 0 1 7.314-7.314h58.514a7.314 7.314 0 0 1 7.315 7.314v317.44a109.714 109.714 0 0 1-99.182 109.203l-10.533 0.512H219.43a109.714 109.714 0 0 1-109.203-99.182l-0.512-10.533V219.43a109.714 109.714 0 0 1 99.182-109.203l10.533-0.512h299.666a7.314 7.314 0 0 1 7.314 7.315z m307.345 31.817l41.4 41.399a7.314 7.314 0 0 1 0 10.313L419.985 655.726a7.314 7.314 0 0 1-10.313 0l-41.399-41.4a7.314 7.314 0 0 1 0-10.312l455.168-455.168a7.314 7.314 0 0 1 10.313 0z" fill="currentColor"></path></svg></button><button id="applyBackgroundRatio" type="button" disabled title="应用图片比例到自定义比例" aria-label="应用图片比例到自定义比例"><svg class="background-action-icon ratio-action-icon" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M716.8 770.56H307.2c-29.696 0-53.76-24.064-53.76-53.76V307.2c0-29.696 24.064-53.76 53.76-53.76h409.6c29.696 0 53.76 24.064 53.76 53.76v409.6c0 29.696-24.064 53.76-53.76 53.76z m-396.8-66.56h384v-384h-384v384zM911.36 320c-18.432 0-33.28-14.848-33.28-33.28V145.92H737.28c-18.432 0-33.28-14.848-33.28-33.28s14.848-33.28 33.28-33.28h174.08c18.432 0 33.28 14.848 33.28 33.28v174.08c0 18.432-14.848 33.28-33.28 33.28zM911.36 944.64h-174.08c-18.432 0-33.28-14.848-33.28-33.28s14.848-33.28 33.28-33.28h140.8V737.28c0-18.432 14.848-33.28 33.28-33.28s33.28 14.848 33.28 33.28v174.08c0 18.432-14.848 33.28-33.28 33.28z" fill="currentColor"></path><path d="M112.64 320c-18.432 0-33.28-14.848-33.28-33.28V112.64c0-18.432 14.848-33.28 33.28-33.28h174.08c18.432 0 33.28 14.848 33.28 33.28s-14.848 33.28-33.28 33.28H145.92V286.72c0 18.432-14.848 33.28-33.28 33.28zM286.72 944.64H112.64c-18.432 0-33.28-14.848-33.28-33.28v-174.08c0-18.432 14.848-33.28 33.28-33.28s33.28 14.848 33.28 33.28v140.8H286.72c18.432 0 33.28 14.848 33.28 33.28s-14.848 33.28-33.28 33.28z" fill="currentColor"></path></svg></button><button id="clearBackgroundImage" type="button" disabled title="清除背景图片" aria-label="清除背景图片"><svg class="background-action-icon trash-icon" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M227.555556 312.888889m17.066666 0l534.755556 0q17.066667 0 17.066666 17.066667l0 0q0 17.066667-17.066666 17.066666l-534.755556 0q-17.066666 0-17.066666-17.066666l0 0q0-17.066667 17.066666-17.066667Z" fill="currentColor"></path><path d="M420.977778 233.244444m17.066666 0l147.911112 0q17.066667 0 17.066667 17.066667l0 0q0 17.066667-17.066667 17.066667l-147.911112 0q-17.066666 0-17.066666-17.066667l0 0q0-17.066667 17.066666-17.066667Z" fill="currentColor"></path><path d="M318.577778 335.644444v328.533334c0 49.737956 49.533156 91.517156 112.389689 92.427378l2.0992 0.017066h157.866666c63.146667 0 113.379556-41.233067 114.471823-90.794666l0.017066-1.649778V335.644444h34.133334v328.533334c0 69.961956-65.820444 125.457067-146.181689 126.560711l-2.440534 0.017067h-157.866666c-80.645689 0-147.279644-54.795378-148.599467-124.461512L284.444444 664.177778V335.644444h34.133334z" fill="currentColor"></path></svg></button></div><div class="background-adjust-panel mode-hidden" id="backgroundAdjustPanel"><div class="photo-adjust-heading"><span>背景图片调整</span><small id="backgroundImageLabel">未选择图片</small><button id="resetBackgroundAdjust" type="button">重置</button><button id="closeBackgroundAdjust" type="button" title="关闭">×</button></div><label class="range-control"><span>背景缩放 <output id="backgroundScaleOutput">100%</output></span><input id="backgroundScaleInput" type="range" min="100" max="300" step="1" data-wheel-step="10" value="100"></label><label class="range-control"><span>水平位置 <output id="backgroundOffsetXOutput">0%</output></span><input id="backgroundOffsetXInput" type="range" min="-100" max="100" step="1" data-wheel-step="10" value="0"></label><label class="range-control"><span>垂直位置 <output id="backgroundOffsetYOutput">0%</output></span><input id="backgroundOffsetYInput" type="range" min="-100" max="100" step="1" data-wheel-step="10" value="0"></label></div>
     </section>
     <section class="inspector-section media-section">
       <div class="section-heading"><h2>图片 <span class="muted-dot">·</span> <span id="slotCountLabel">12 个槽位</span></h2></div>
       <div class="media-toolbar"><span>槽位数量</span><div class="stepper"><button id="slotMinus">−</button><output id="slotCountOutput">12</output><button id="slotPlus">＋</button></div></div>
       <div class="upload-row"><button class="upload-button" id="uploadButton"><span class="upload-icon"><svg viewBox="0 0 1024 1024" aria-hidden="true"><path d="M921.6 757.76h-0.512c-3.072-23.04-22.528-40.96-46.08-40.96-24.064 0-43.52 17.92-46.08 40.96h-0.512s0 70.144-70.144 70.144H266.24c-70.144 0-70.144-70.144-70.144-70.144h-0.512c-3.072-23.04-22.528-40.96-46.08-40.96-24.064 0-43.52 17.92-46.08 40.96H102.4v5.632c0 3.584 0.512 7.168 1.024 10.24 5.12 41.472 30.72 147.456 162.816 147.456h491.52c123.904 0 154.112-100.864 161.792-144.384 1.536-4.608 2.048-9.216 2.048-13.824v-2.56-2.56zM212.992 412.672c4.096 14.848 15.36 26.624 30.72 30.208 14.848 4.096 30.72-0.512 41.472-11.776l185.344-184.32v475.648c0 23.552 18.944 42.496 42.496 42.496 11.264 0 22.016-4.608 30.208-12.288 8.192-7.68 12.288-18.944 12.288-30.208V247.808l184.32 183.296c16.896 16.384 43.52 16.384 60.416 0 16.896-16.384 16.896-43.52 0-59.904L542.72 114.688c-8.192-8.192-18.944-12.288-30.208-12.288s-22.016 4.608-30.208 12.288L224.768 371.2c-11.264 10.752-15.872 26.624-11.776 41.472z" fill="currentColor"></path></svg></span><span><b>读取本地图片</b><small>支持多选 · JPG、PNG、WebP</small></span></button><button class="folder-upload clear-images-button" id="clearImagesButton" title="清空所有图片" aria-label="清空所有图片"><svg class="trash-icon" viewBox="0 0 1024 1024" aria-hidden="true"><path d="M227.555556 312.888889m17.066666 0l534.755556 0q17.066667 0 17.066666 17.066667l0 0q0 17.066667-17.066666 17.066666l-534.755556 0q-17.066667 0-17.066666-17.066666l0 0q0-17.066667 17.066666-17.066667Z" fill="currentColor"></path><path d="M420.977778 233.244444m17.066666 0l147.911112 0q17.066667 0 17.066666 17.066667l0 0q0 17.066667-17.066666 17.066667l-147.911112 0q-17.066667 0-17.066666-17.066667l0 0q0-17.066667 17.066666-17.066667Z" fill="currentColor"></path><path d="M472.177778 455.111111m0 17.066667l0 142.222222q0 17.066667-17.066667 17.066667l0 0q-17.066667 0-17.066667-17.066667l0-142.222222q0-17.066667 17.066667-17.066667l0 0q17.066667 0 17.066667 17.066667Z" fill="currentColor"></path><path d="M585.955556 455.111111m0 17.066667l0 142.222222q0 17.066667-17.066667 17.066667l0 0q-17.066667 0-17.066667-17.066667l0-142.222222q0-17.066667 17.066667-17.066667l0 0q17.066667 0 17.066667 17.066667Z" fill="currentColor"></path><path d="M318.577778 335.644444v328.533334c0 49.737956 49.533156 91.517156 112.389689 92.427378l2.0992 0.017066h157.866666c63.146667 0 113.379556-41.233067 114.471823-90.794666l0.017066-1.649778V335.644444h34.133334v328.533334c0 69.961956-65.820444 125.457067-146.181689 126.560711l-2.440534 0.017067h-157.866666c-80.645689 0-147.279644-54.795378-148.599467-124.461512L284.444444 664.177778V335.644444h34.133334z" fill="currentColor"></path></svg></button><input type="file" id="fileInput" accept="image/*" multiple hidden></div>
       <div class="slots-wrap" id="slotsWrap">
-        <div class="photo-adjust-panel popup" id="photoAdjustPanel">
-          <div class="photo-adjust-heading"><span>图片调整</span><small id="selectedPhotoLabel">槽位 1</small><button id="resetPhotoAdjust" type="button">重置</button><button id="closePhotoAdjust" type="button" title="关闭">×</button></div>
-          <label class="range-control"><span>图片缩放 <output id="photoScaleOutput">100%</output></span><input id="photoScaleInput" type="range" min="100" max="300" step="1" data-wheel-step="10" value="100"></label>
-          <label class="range-control"><span>水平位置 <output id="photoOffsetXOutput">0%</output></span><input id="photoOffsetXInput" type="range" min="-300" max="300" step="1" data-wheel-step="10" value="0"></label>
-          <label class="range-control"><span>垂直位置 <output id="photoOffsetYOutput">0%</output></span><input id="photoOffsetYInput" type="range" min="-300" max="300" step="1" data-wheel-step="10" value="0"></label>
-        </div>
         <div class="slots-list" id="slotsList"></div>
       </div>
       <div class="media-note">ⓘ 本地图片保存在当前浏览器，不会上传</div>
@@ -216,12 +290,20 @@ app.innerHTML = `
     <section class="inspector-section settings-section">
       <div class="section-heading"><h2 id="settingsTitle">设置</h2><button class="reset-button" id="resetButton">重置</button></div>
       <div class="card-size-controls">
-        <label class="range-control"><span>图片宽度 <output id="cardWidthOutput">188 px</output></span><input id="cardWidthInput" type="range" min="40" max="600" step="1" data-wheel-step="10" value="188"></label>
+        <label class="range-control"><span><span id="cardWidthLabel">图片宽度</span> <output id="cardWidthOutput">188 px</output></span><input id="cardWidthInput" type="range" min="40" max="600" step="1" data-wheel-step="10" value="188"></label>
         <label class="range-control"><span>图片高度 <output id="cardHeightOutput">240 px</output></span><input id="cardHeightInput" type="range" min="40" max="800" step="1" data-wheel-step="10" value="240"></label>
       </div>
       <div id="ringLayoutSettings">
         <label class="range-control"><span>环形半径 <output id="radiusOutput"></output></span><input id="radiusInput" type="range" min="100" max="900" step=".1" data-wheel-step="10" value="420"></label>
         <label class="range-control" id="ringSpacingControl"><span>图片间距 <output id="spacingOutput">36 px</output></span><input id="spacingInput" type="range" min="0" max="300" step=".1" data-wheel-step="5" value="36"></label>
+      </div>
+      <div id="concentricLayoutSettings" class="mode-hidden">
+        <label class="range-control"><span>圈数 <output id="concentricRingsOutput">4</output></span><input id="concentricRingsInput" type="range" min="1" max="8" step="1" data-wheel-step="1" value="4"></label>
+        <label class="range-control"><span>内圈半径 <output id="concentricRadiusOutput">203 px</output></span><input id="concentricRadiusInput" type="range" min="50" max="1500" step="1" data-wheel-step="10" value="203"></label>
+        <label class="range-control" id="concentricOuterRadiusControl"><span>外圈半径 <output id="concentricOuterRadiusOutput">575 px</output></span><input id="concentricOuterRadiusInput" type="range" min="50" max="5700" step="1" data-wheel-step="10" value="575"></label>
+        <label class="range-control"><span>圈间距 <output id="concentricRingGapOutput">124 px</output></span><input id="concentricRingGapInput" type="range" min="20" max="600" step="1" data-wheel-step="10" value="124"></label>
+        <label class="range-control"><span>层级高度差（Z） <output id="concentricHeightStepOutput">66 px</output></span><input id="concentricHeightStepInput" type="range" min="-600" max="600" step="1" data-wheel-step="10" value="66"></label>
+        <label class="range-control"><span>交替错位 <output id="concentricStaggerOutput">0%</output></span><input id="concentricStaggerInput" type="range" min="0" max="100" step="1" data-wheel-step="5" value="0"></label>
       </div>
       <div id="curvedLayoutSettings" class="mode-hidden">
         <label class="range-control"><span>行数 <output id="rowCountOutput">3</output></span><input id="rowCountInput" type="range" min="1" max="8" step="1" data-wheel-step="1" value="3"></label>
@@ -230,6 +312,7 @@ app.innerHTML = `
         <label class="range-control"><span id="curvedSpacingLabel">间距 <output id="curvedSpacingOutput">28 px</output></span><input id="curvedSpacingInput" type="range" min="0" max="160" step="1" data-wheel-step="1" value="28"></label>
         <div class="grid-choice-control curved-stagger-direction"><span>错位方向</span><div class="grid-choice" role="group" aria-label="错位方向"><button type="button" data-curved-stagger-direction="horizontal" aria-pressed="true">横向</button><button type="button" data-curved-stagger-direction="vertical" aria-pressed="false">竖向</button></div></div>
         <label class="range-control" title="控制相邻行或列的错位程度；接近 0% 时自动吸附到边缘对齐"><span>错位程度 <output id="staggerOutput">50%</output></span><input id="staggerInput" type="range" min="0" max="100" step="1" data-wheel-step="5" value="50"></label>
+        <label class="range-control mode-hidden" id="roomWallStaggerControl"><span>整面墙错位 <output id="roomWallStaggerOutput">10%</output></span><input id="roomWallStaggerInput" type="range" min="0" max="40" step="1" data-wheel-step="2" value="10"></label>
         <label class="range-control angle-toggle" id="curveBendControl" title="正值向前凸，负值向后凹；右键循环切换角度档位"><span>整体弯曲 <output id="curveBendOutput">-120°</output></span><input id="curveBendInput" type="range" min="-360" max="360" step="1" data-wheel-step="10" value="-120"></label>
         <div class="grid-choice-control single-fixed-edge-control mode-hidden"><span>固定边缘</span><div class="grid-choice" role="group" aria-label="固定边缘"><button type="button" data-single-fixed-edge="top" aria-pressed="false">上侧</button><button type="button" data-single-fixed-edge="right" aria-pressed="false">右侧</button><button type="button" data-single-fixed-edge="bottom" aria-pressed="false">下侧</button><button type="button" data-single-fixed-edge="left" aria-pressed="true">左侧</button></div></div>
         <div class="decorative-wall-controls mode-hidden" id="decorativeWallControls">
@@ -237,6 +320,12 @@ app.innerHTML = `
           <label class="range-control"><span>装饰透明度 <output id="decorativeWallOpacityOutput">30%</output></span><input id="decorativeWallOpacityInput" type="range" min="0" max="100" step="1" data-wheel-step="5" value="30"></label>
           <label class="range-control"><span>装饰弯曲 <output id="decorativeWallProgressOutput">0%</output></span><input id="decorativeWallProgressInput" type="range" min="0" max="100" step="1" data-wheel-step="5" value="0"></label>
         </div>
+      </div>
+      <div id="freeGridLayoutSettings" class="mode-hidden">
+        <div class="grid-choice-control"><span>排布方式</span><div class="grid-choice" role="group" aria-label="排布方式"><button type="button" data-free-direction="center">中心聚合</button><button type="button" data-free-direction="horizontal">横向</button><button type="button" data-free-direction="vertical">竖向</button></div></div>
+        <label class="range-control"><span>统一间距 <output id="freeGapOutput">16 px</output></span><input id="freeGapInput" type="range" min="0" max="160" step="1" data-wheel-step="1" value="16"></label>
+        <label class="range-control"><span>边缘起伏 <output id="freeEdgeOutput">65%</output></span><input id="freeEdgeInput" type="range" min="0" max="100" step="1" data-wheel-step="5" value="65"></label>
+        <button type="button" id="shuffleFreeGrid" class="free-grid-shuffle">换一版排列</button>
       </div>
       <div id="gridLayoutSettings" class="mode-hidden">
         <label class="range-control"><span>行数 <output id="gridRowCountOutput">4</output></span><input id="gridRowCountInput" type="range" min="1" max="8" step="1" data-wheel-step="1" value="4"></label>
@@ -267,6 +356,29 @@ app.innerHTML = `
     </section>
   </aside>
 </main>
+<div class="photo-edit-modal mode-hidden" id="photoEditModal" role="dialog" aria-modal="false" aria-labelledby="photoEditTitle" aria-hidden="true">
+  <div class="photo-edit-backdrop" aria-hidden="true"></div>
+  <div class="photo-edit-dialog">
+    <div class="photo-edit-heading"><div><h2 id="photoEditTitle">图片调整</h2><small id="photoEditLabel">槽位 1</small></div><button id="closePhotoEdit" type="button" aria-label="取消">×</button></div>
+    <div class="photo-edit-body">
+      <div class="photo-edit-stage" id="photoEditViewport" tabindex="0" aria-label="图片编辑画布">
+        <div class="photo-edit-overflow" id="photoEditOverflow"><img id="photoEditOverflowImage" alt=""></div>
+        <div class="photo-edit-crop" id="photoEditCrop"><img id="photoEditImage" alt=""></div>
+        <div class="photo-edit-frame" id="photoEditFrame" aria-hidden="true"></div>
+        <div class="photo-edit-image-frame" id="photoEditImageFrame"><span class="photo-edit-handle nw" data-photo-edit-handle="nw"></span><span class="photo-edit-handle n" data-photo-edit-handle="n"></span><span class="photo-edit-handle ne" data-photo-edit-handle="ne"></span><span class="photo-edit-handle e" data-photo-edit-handle="e"></span><span class="photo-edit-handle se" data-photo-edit-handle="se"></span><span class="photo-edit-handle s" data-photo-edit-handle="s"></span><span class="photo-edit-handle sw" data-photo-edit-handle="sw"></span><span class="photo-edit-handle w" data-photo-edit-handle="w"></span></div>
+      </div>
+      <aside class="photo-edit-controls">
+        <div class="photo-edit-dimensions"><span>画布比例</span><b id="photoEditDimensions">188 × 240 px</b></div>
+        <label class="range-control"><span>水平缩放 <output id="photoEditScaleXOutput">100%</output></span><input id="photoEditScaleXInput" type="range" min="100" max="300" step="1" data-wheel-step="10" value="100"></label>
+        <label class="range-control"><span>垂直缩放 <output id="photoEditScaleYOutput">100%</output></span><input id="photoEditScaleYInput" type="range" min="100" max="300" step="1" data-wheel-step="10" value="100"></label>
+        <label class="range-control"><span>水平位置 <output id="photoEditOffsetXOutput">0%</output></span><input id="photoEditOffsetXInput" type="range" min="-300" max="300" step="1" data-wheel-step="10" value="0"></label>
+        <label class="range-control"><span>垂直位置 <output id="photoEditOffsetYOutput">0%</output></span><input id="photoEditOffsetYInput" type="range" min="-300" max="300" step="1" data-wheel-step="10" value="0"></label>
+        <button type="button" class="photo-edit-reset" id="resetPhotoEdit">重置</button>
+      </aside>
+    </div>
+    <div class="photo-edit-footer"><span>拖动画布移动图片 · 拖动边缘锚点缩放 · 滚轮缩放 · Ctrl 居中 · Ctrl+Shift 等比例</span><div><button type="button" class="photo-edit-cancel" id="cancelPhotoEdit">取消</button><button type="button" class="photo-edit-apply" id="applyPhotoEdit">应用</button></div></div>
+  </div>
+</div>
 <div class="toast" id="toast" role="status"></div>`;
 
 const $ = selector => document.querySelector(selector);
@@ -299,8 +411,15 @@ function renderPresetPreviews(){
     // The grid thumbnail uses a closer preview camera for a 1.5x overall
     // zoom. Card size and spacing stay unchanged; only the viewport framing
     // changes so the wall fills the small preview tile.
+    regularGrid:{count:12,distance:20,previewZoom:.8},
+    freeGrid:{count:12,distance:20,previewZoom:.8},
     grid:{count:DEFAULT_PHOTO_COUNTS.grid,distance:11.8},
     isometric:{count:DEFAULT_PHOTO_COUNTS.isometric,rows:5,columns:5,distance:22,previewZoom:1.05},
+    // The gallery is one continuous 4-sided strip. Keep its thumbnail on the
+    // same 4 x 12 default as the editor so the alternating ring shift is
+    // visible in the preset card as well.
+    room:{count:DEFAULT_PHOTO_COUNTS.room,rows:5,columns:12,distance:24,previewZoom:1},
+    concentric:{count:DEFAULT_PHOTO_COUNTS.concentric,distance:17,previewZoom:1.1,previewLensZoom:1.3},
   };
   try{
     document.querySelectorAll('[data-preview-mode]').forEach(host=>{
@@ -326,37 +445,67 @@ function renderPresetPreviews(){
       previewScene.add(group);
       // A zero FOV is rendered with an orthographic camera in the editor.
       // Zero FOV uses orthographic projection for every wall type.
-      const previewFov=Number(settings.fov)<=0?38:settings.fov;
+      // A longer, narrower lens keeps the thumbnail's horizontal and
+      // vertical gaps visually balanced while retaining the room depth.
+      const previewFov=mode==='room'?22:(Number(settings.fov)<=0?38:settings.fov);
       const previewOrthoSpan=4.44/(definition.previewZoom||1);
       const previewCamera=mode==='isometric'||Number(settings.fov)<=0
         ?new THREE.OrthographicCamera(-previewOrthoSpan,previewOrthoSpan,previewOrthoSpan,-previewOrthoSpan,.1,100)
         :new THREE.PerspectiveCamera(previewFov,1,.1,100);
+      previewCamera.zoom=definition.previewLensZoom||1;
+      previewCamera.updateProjectionMatrix();
       const yaw=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),THREE.MathUtils.degToRad(settings.rotation));
       const pitch=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),-THREE.MathUtils.degToRad(settings.tilt));
       previewCamera.quaternion.copy(yaw.multiply(pitch));
-      previewCamera.position.set(0,0,definition.distance).applyQuaternion(previewCamera.quaternion);
+      const previewDistance=mode==='room'||mode==='concentric'
+        ?definition.distance/Math.max(definition.previewZoom||1,0.01)
+        :definition.distance;
+      previewCamera.position.set(0,0,previewDistance).applyQuaternion(previewCamera.quaternion);
+      if(mode==='concentric')previewCamera.position.add(new THREE.Vector3().fromArray(settings.cameraTarget));
       previewCamera.updateMatrixWorld(true);
       const cardMaterials=[];
       const geometries=new Map();
       try{
+        const freeRects=isPlanarMode(mode)?(mode==='regularGrid'?regularGridLayout:freeGridLayout)(Array.from({length:definition.count},(_,i)=>[.75,1.5,1][i%3]),{aspect:mode==='regularGrid'?1:undefined,canvasWidth:1080,canvasHeight:1080,gap:24,edge:settings.freeEdge}):[];
         const poses=[];
+        const concentricPreview=mode==='concentric'?concentricLayout(definition.count,{
+          rings:settings.rows,radius:settings.radius,ringGap:settings.rowGap/DESIGN_SCALE,
+          outerRadius:settings.concentricOuterRadius,heightStep:settings.concentricHeightStep/DESIGN_SCALE,
+          stagger:settings.staggerHorizontal/100,phase:THREE.MathUtils.degToRad(settings.contentRotation),
+          width:settings.cardWidth/DESIGN_SCALE,height:settings.cardHeight/DESIGN_SCALE,
+        }).poses:[];
         for(let index=0;index<definition.count;index++){
-          poses.push(mode==='ring'
+          poses.push(mode==='concentric'?concentricPreview[index]:isPlanarMode(mode)?freeRectPose(freeRects[index]):mode==='ring'
             ?ringCardPose(index,definition.count,settings.radius,settings.spacing/DESIGN_SCALE,THREE.MathUtils.degToRad(settings.contentRotation),width)
             :mode==='bloom'
               ?bloomCardPose(index,definition.count,settings.radius,settings.spacing/DESIGN_SCALE,THREE.MathUtils.degToRad(settings.contentRotation),width)
             :(mode==='grid'||mode==='isometric')
               ?gridCardPose(index,settings.rows,columns,settings.columnGap/DESIGN_SCALE,settings.rowGap/DESIGN_SCALE,settings.gridStagger/100,settings.gridStaggerDirection,width,height)
-              :curvedCardPose(index,rows,columns,settings.columnGap/DESIGN_SCALE,settings.rowGap/DESIGN_SCALE,settings.curveBend,width,height,mode==='curved'||mode==='curvedHorizontal'?0:settings.stagger/100,(mode==='curvedHorizontal'||(mode==='single'&&(settings.fixedEdge==='top'||settings.fixedEdge==='bottom'))) ? 'vertical':'horizontal',settings.staggerDirection,mode==='single'?settings.fixedEdge:'center'));
+              :mode==='room'
+                // Keep the preset thumbnail aligned. Its job is to show the
+                // four-sided structure; the editable canvas still uses the
+                // saved alternating-ring stagger.
+                // The square thumbnail compresses the room depth, so use a
+                // slightly tighter perimeter gap and a slightly larger ring
+                // gap to keep column and row spacing visually balanced.
+                ?roomCardPose(index,rows,columns,22/DESIGN_SCALE,34/DESIGN_SCALE,width,height,0,0,settings.staggerDirection)
+              :curvedCardPose(index,rows,columns,settings.columnGap/DESIGN_SCALE,settings.rowGap/DESIGN_SCALE,settings.curveBend,width,height,mode==='curved'||mode==='curvedHorizontal'?0:staggerValueFor(settings)/100,(mode==='curvedHorizontal'||(mode==='single'&&(settings.fixedEdge==='top'||settings.fixedEdge==='bottom'))) ? 'vertical':'horizontal',settings.staggerDirection,mode==='single'?settings.fixedEdge:'center'));
         }
         const depths=poses.map(pose=>Math.max(.1,-pose.position.clone().applyQuaternion(group.quaternion).applyMatrix4(previewCamera.matrixWorldInverse).z));
         const nearest=Math.min(...depths),farthest=Math.max(...depths),depthRange=Math.max(.001,farthest-nearest);
         const addPreviewPose=(pose,index,toneColor,opacity=1)=>{
           const scale=pose.width/width;
           const radius=mode==='ring'?settings.radius/Math.max(scale,.001):pose.curvatureRadius||0;
-          const axis=pose.curvatureAxis||'x',key=`${radius}:${axis}`;
-          if(!geometries.has(key))geometries.set(key,createCardGeometry(radius,axis,width,height));
-          const corner={value:settings.corner/DESIGN_SCALE},cardSize={value:new THREE.Vector2(width,height)};
+          const axis=pose.curvatureAxis||'x';
+          // Inset the concentric thumbnail cards so dense rings remain readable at icon size.
+          const previewInset=mode==='concentric'?32/DESIGN_SCALE:0;
+          const previewWidth=(isPlanarMode(mode)?pose.width:width)-previewInset;
+          const previewHeight=(pose.height||height)-previewInset;
+          const key=mode==='room'?`room:${JSON.stringify(pose.surface)}`:`${radius}:${axis}:${previewWidth}:${previewHeight}`;
+          if(!geometries.has(key))geometries.set(key,mode==='room'
+            ?createRoomCardGeometry(pose)
+            :createCardGeometry(radius,axis,previewWidth,previewHeight));
+          const corner={value:Math.min(settings.corner/DESIGN_SCALE,previewWidth/2,previewHeight/2)},cardSize={value:new THREE.Vector2(previewWidth,previewHeight)};
           const front=createCardMaterial(corner,THREE.FrontSide,1,cardSize);
           const back=createCardMaterial(corner,THREE.BackSide,1,cardSize);
           front.color.set(toneColor);back.color.set(toneColor);
@@ -367,7 +516,7 @@ function renderPresetPreviews(){
             const mesh=new THREE.Mesh(geometries.get(key),material);
             mesh.position.copy(pose.position);
             mesh.quaternion.copy(pose.quaternion);
-            mesh.scale.set(scale,1,scale);
+            mesh.scale.set(isPlanarMode(mode)?1:scale,1,isPlanarMode(mode)?1:scale);
             group.add(mesh);
           }
         };
@@ -376,11 +525,41 @@ function renderPresetPreviews(){
         if(mode==='single'){
           for(let index=0;index<definition.count;index++){
             const previewAxis=(settings.fixedEdge==='top'||settings.fixedEdge==='bottom')?'vertical':'horizontal';
-            const pose=curvedCardPose(index,rows,columns,settings.columnGap/DESIGN_SCALE,settings.rowGap/DESIGN_SCALE,0,width,height,settings.stagger/100,previewAxis,settings.staggerDirection,settings.fixedEdge);
+            const pose=curvedCardPose(index,rows,columns,settings.columnGap/DESIGN_SCALE,settings.rowGap/DESIGN_SCALE,0,width,height,staggerValueFor(settings)/100,previewAxis,settings.staggerDirection,settings.fixedEdge);
             addPreviewPose(pose,index,index%2?'#858a98':'#6f7482',.35);
           }
         }
-        poses.forEach((pose,index)=>addPreviewPose(pose,index,index%2?'#7d808c':'#4f5159',1));
+        const previewTones=poses.map((pose,index)=>mode==='concentric'
+          ?((pose.ring+pose.column)%2?'#7d808c':'#4f5159'):mode==='room'
+          ?(pose.row%2?'#686b73':'#9699a2')
+          :(index%2?'#7d808c':'#4f5159'));
+        if(isPlanarMode(mode)){
+          // Color neighboring modules separately; photo-slot order is shuffled.
+          const palette=['#7d808c','#4f5159'];
+          const neighbors=freeRects.map(a=>freeRects.flatMap((b,j)=>{
+            if(a===b)return [];
+            const r=a.region,t=b.region;
+            const rows=Math.min(r.y+r.h,t.y+t.h)-Math.max(r.y,t.y);
+            const columns=Math.min(r.x+r.w,t.x+t.w)-Math.max(r.x,t.x);
+            return (rows>0&&(r.x+r.w===t.x||t.x+t.w===r.x))||(columns>0&&(r.y+r.h===t.y||t.y+t.h===r.y))?[j]:[];
+          }));
+          // Find the two-tone pattern that separates the most adjacent cards.
+          // These thumbnails contain only 12 cards, so every pattern is cheap to check.
+          let bestMask=0,bestScore=-Infinity;
+          for(let mask=1;mask<2**(poses.length-1);mask++){
+            const tone=i=>(mask>>>i)&1;
+            const bright=poses.reduce((sum,_,i)=>sum+tone(i),0);
+            if(bright<poses.length/3||bright>poses.length*2/3)continue;
+            let score=-Math.abs(bright-poses.length/2)*.01;
+            neighbors.forEach((adjacent,i)=>adjacent.forEach(j=>{
+              if(j>i&&tone(i)!==tone(j))score++;
+            }));
+            if(score>bestScore){bestScore=score;bestMask=mask}
+          }
+          const assigned=poses.map((_,i)=>(bestMask>>>i)&1);
+          assigned.forEach((tone,i)=>previewTones[i]=palette[tone]);
+        }
+        poses.forEach((pose,index)=>addPreviewPose(pose,index,previewTones[index],1));
         previewRenderer.render(previewScene,previewCamera);
         // Copy the actual WebGL output into a static canvas before disposing
         // GPU resources. This needs no extra live WebGL contexts or updates.
@@ -407,24 +586,35 @@ function commitRangeOutput(output){
   range.value=String(value);
   range.dispatchEvent(new Event('input',{bubbles:true}));
 }
+function stepRangeFromWheel(range,deltaY){
+  if(!range)return;
+  const step=Math.abs(Number(range.dataset.wheelStep||range.step))||1;
+  const min=Number(range.min),max=Number(range.max),current=Number(range.value);
+  const direction=deltaY<0?1:-1;
+  const precision=Math.max(0,(String(step).split('.')[1]||'').length);
+  const next=Math.min(max,Math.max(min,Number((current+direction*step).toFixed(precision))));
+  if(next===current)return;
+  range.value=String(next);
+  range.dispatchEvent(new Event('input',{bubbles:true}));
+}
 document.querySelectorAll('.range-control output').forEach(output=>{
   output.contentEditable='true';
   output.spellcheck=false;
   output.title='点击输入数值，滚轮微调';
+  // The output lives inside a <label>. Without cancelling the label's
+  // activation click, the browser immediately moves focus to the range
+  // input, which makes the editable number flash and lose focus (especially
+  // while loop animation controls are syncing keyframes).
+  output.addEventListener('click',event=>{event.preventDefault();event.stopPropagation()});
   output.addEventListener('focus',()=>{const range=output.closest('.range-control')?.querySelector('input[type=range]');if(range){output.textContent=range.value;const selection=window.getSelection();const caret=document.createRange();caret.selectNodeContents(output);selection.removeAllRanges();selection.addRange(caret)}});
   output.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();output.blur()}});
   output.addEventListener('wheel',event=>{
-    if(document.activeElement!==output)return;
     const range=output.closest('.range-control')?.querySelector('input[type=range]');
-    if(!range)return;
+    // Scrolling over an unselected value should scroll the inspector/page.
+    // Wheel stepping is only active while this number field is focused.
+    if(!range||document.activeElement!==output)return;
     event.preventDefault();
-    const step=Math.abs(Number(range.dataset.wheelStep||range.step))||1;
-    const min=Number(range.min),max=Number(range.max),current=Number(range.value);
-    const direction=event.deltaY<0?1:-1;
-    const precision=Math.max(0,(String(step).split('.')[1]||'').length);
-    const next=Math.min(max,Math.max(min,Number((current+direction*step).toFixed(precision))));
-    range.value=String(next);
-    range.dispatchEvent(new Event('input',{bubbles:true}));
+    stepRangeFromWheel(range,event.deltaY);
   },{passive:false});
   output.addEventListener('blur',()=>commitRangeOutput(output));
 });
@@ -456,20 +646,27 @@ document.querySelectorAll('.angle-toggle').forEach(control=>{
 function defaultRangeValue(input){
   const settings=createModeSettings(state.mode);
   switch(input.id){
-    case 'photoScaleInput': return 100;
+    case 'photoScaleXInput':
+    case 'photoScaleYInput': return 100;
     case 'photoOffsetXInput':
     case 'photoOffsetYInput': return 0;
     case 'cardWidthInput': return settings.cardWidth??DEFAULT_CARD_WIDTH;
     case 'cardHeightInput': return settings.cardHeight??DEFAULT_CARD_HEIGHT;
     case 'radiusInput': return settings.radius*DESIGN_SCALE;
     case 'spacingInput': return settings.spacing;
+    case 'concentricRingsInput': return settings.rows;
+    case 'concentricRadiusInput': return settings.radius*DESIGN_SCALE;
+    case 'concentricOuterRadiusInput': return settings.concentricOuterRadius*DESIGN_SCALE;
+    case 'concentricRingGapInput': return settings.rowGap;
+    case 'concentricHeightStepInput': return settings.concentricHeightStep;
+    case 'concentricStaggerInput': return settings.staggerHorizontal;
     case 'rowCountInput':
     case 'gridRowCountInput': return settings.rows;
     case 'columnCountInput':
     case 'gridColumnCountInput': return settings.columns;
     case 'curvedSpacingInput': return settings.columnGap;
     case 'gridGapInput': return settings.columnGap;
-    case 'staggerInput': return settings.stagger;
+    case 'staggerInput': return staggerValueFor(settings);
     case 'gridStaggerInput': return settings.gridStagger;
     case 'curveBendInput': return settings.curveBend;
     case 'cornerInput': return settings.corner;
@@ -507,12 +704,48 @@ stage.classList.add('project-loading');
 const inspector = $('.inspector');
 const slotsList = $('#slotsList');
 const slotsWrap = $('#slotsWrap');
+const photoEditModal = $('#photoEditModal');
+const photoEditViewport = $('#photoEditViewport');
+const photoEditFrame = $('#photoEditFrame');
+const photoEditImageFrame = $('#photoEditImageFrame');
+const photoEditCrop = $('#photoEditCrop');
+const photoEditOverflow = $('#photoEditOverflow');
+const photoEditImage = $('#photoEditImage');
+const photoEditOverflowImage = $('#photoEditOverflowImage');
 const toast = $('#toast');
 const scene = new THREE.Scene();
 let backgroundColor='#101014';
 let backgroundImage=null;
 let backgroundTexture=null;
+let backgroundAdjustOpen=false;
+let backgroundScale=100;
+let backgroundOffsetX=0;
+let backgroundOffsetY=0;
 scene.background = new THREE.Color(backgroundColor);
+function applyBackgroundTextureTransform(){
+  if(!backgroundTexture)return;
+  const scale=THREE.MathUtils.clamp(Number(backgroundScale)||100,100,300)/100;
+  const repeat=1/scale;
+  const center=(1-repeat)/2;
+  const panX=THREE.MathUtils.clamp(Number(backgroundOffsetX)||0,-100,100)/100*center;
+  const panY=THREE.MathUtils.clamp(Number(backgroundOffsetY)||0,-100,100)/100*center;
+  backgroundTexture.center.set(.5,.5);
+  backgroundTexture.rotation=0;
+  backgroundTexture.repeat.set(repeat,repeat);
+  backgroundTexture.offset.set(center+panX,center-panY);
+  backgroundTexture.needsUpdate=true;
+}
+function syncBackgroundAdjustControls(){
+  const scaleInput=$('#backgroundScaleInput'),offsetXInput=$('#backgroundOffsetXInput'),offsetYInput=$('#backgroundOffsetYInput');
+  if(scaleInput)scaleInput.value=String(backgroundScale);
+  if(offsetXInput)offsetXInput.value=String(backgroundOffsetX);
+  if(offsetYInput)offsetYInput.value=String(backgroundOffsetY);
+  const scaleOutput=$('#backgroundScaleOutput'),offsetXOutput=$('#backgroundOffsetXOutput'),offsetYOutput=$('#backgroundOffsetYOutput');
+  if(scaleOutput)scaleOutput.textContent=`${backgroundScale}%`;
+  if(offsetXOutput)offsetXOutput.textContent=`${backgroundOffsetX}%`;
+  if(offsetYOutput)offsetYOutput.textContent=`${backgroundOffsetY}%`;
+  const label=$('#backgroundImageLabel');if(label)label.textContent=backgroundImage?.name||uiText('未选择图片','No image selected');
+}
 function setBackgroundColor(value){
   backgroundColor=String(value||'#101014');
   if(!backgroundTexture)scene.background=new THREE.Color(backgroundColor);
@@ -524,29 +757,45 @@ function disposeBackgroundImage(){
   if(backgroundTexture){backgroundTexture.dispose();backgroundTexture=null}
   if(backgroundImage?.objectUrl)URL.revokeObjectURL(backgroundImage.objectUrl);
   backgroundImage=null;
+  backgroundAdjustOpen=false;backgroundScale=100;backgroundOffsetX=0;backgroundOffsetY=0;
   scene.background=new THREE.Color(backgroundColor);
-  const apply=$('#applyBackgroundRatio'),clear=$('#clearBackgroundImage');if(apply)apply.disabled=true;if(clear)clear.disabled=true;
+  const apply=$('#applyBackgroundRatio'),edit=$('#editBackgroundImage'),clear=$('#clearBackgroundImage'),panel=$('#backgroundAdjustPanel'),upload=$('.background-upload'),thumb=$('#backgroundUploadThumb');if(apply)apply.disabled=true;if(edit)edit.disabled=true;if(clear)clear.disabled=true;if(panel)panel.classList.add('mode-hidden');if(upload)upload.classList.remove('has-image');if(thumb){thumb.src='';thumb.alt='';thumb.title=''}syncBackgroundAdjustControls();
 }
 function updateBackgroundImageUI(){
-  const apply=$('#applyBackgroundRatio'),clear=$('#clearBackgroundImage');
+  const apply=$('#applyBackgroundRatio'),edit=$('#editBackgroundImage'),clear=$('#clearBackgroundImage'),panel=$('#backgroundAdjustPanel');
   if(apply)apply.disabled=!backgroundImage;
+  if(edit){edit.disabled=!backgroundImage;edit.setAttribute('aria-expanded',String(Boolean(backgroundImage&&backgroundAdjustOpen)))}
   if(clear)clear.disabled=!backgroundImage;
-  const upload=$('.background-upload');if(upload)upload.classList.toggle('has-image',Boolean(backgroundImage));
+  const upload=$('.background-upload'),thumb=$('#backgroundUploadThumb');
+  if(upload)upload.classList.toggle('has-image',Boolean(backgroundImage));
+  if(thumb){thumb.src=backgroundImage?.objectUrl||'';thumb.alt=backgroundImage?.name||'';thumb.title=backgroundImage?.name||''}
+  if(panel)panel.classList.toggle('mode-hidden',!(backgroundImage&&backgroundAdjustOpen));
+  syncBackgroundAdjustControls();
 }
-async function loadBackgroundImage(file,assetId=makeId()){
+async function loadBackgroundImage(file,assetId=makeId(),options={}){
   if(!file||!file.type?.startsWith('image/')){notify('请选择图片文件');return false}
   const objectUrl=URL.createObjectURL(file),image=new Image();
   try{
     await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=reject;image.src=objectUrl});
-    const texture=new THREE.Texture(image);texture.colorSpace=THREE.SRGBColorSpace;texture.needsUpdate=true;
-    disposeBackgroundImage();backgroundTexture=texture;backgroundImage={assetId,blob:file,objectUrl,width:image.naturalWidth,height:image.naturalHeight,name:file.name};scene.background=texture;updateBackgroundImageUI();render();
+    const texture=new THREE.Texture(image);
+    texture.colorSpace=THREE.SRGBColorSpace;
+    // Backgrounds are sampled at the export resolution. Avoid generating a
+    // low-resolution mip chain and keep both preview and export edges crisp.
+    texture.minFilter=THREE.LinearFilter;
+    texture.magFilter=THREE.LinearFilter;
+    texture.generateMipmaps=false;
+    texture.needsUpdate=true;
+    const savedScale=backgroundScale,savedOffsetX=backgroundOffsetX,savedOffsetY=backgroundOffsetY;
+    disposeBackgroundImage();
+    if(options.preserveTransform){backgroundScale=savedScale;backgroundOffsetX=savedOffsetX;backgroundOffsetY=savedOffsetY}
+    backgroundTexture=texture;backgroundImage={assetId,blob:file,objectUrl,width:image.naturalWidth,height:image.naturalHeight,name:file.name};scene.background=texture;applyBackgroundTextureTransform();updateBackgroundImageUI();render();
     savePhotoAsset(assetId,file).catch(()=>notify('背景图片已加载，但浏览器保存失败'));
     scheduleProjectSave();return true;
   }catch{URL.revokeObjectURL(objectUrl);notify('背景图片读取失败');return false}
 }
 async function hydrateBackgroundImage(assetId){
   if(!assetId)return;
-  const stored=await readPhotoAsset(assetId).catch(()=>null);if(stored?.blob)await loadBackgroundImage(stored.blob,assetId);
+  const stored=await readPhotoAsset(assetId).catch(()=>null);if(stored?.blob)await loadBackgroundImage(stored.blob,assetId,{preserveTransform:true});
 }
 function backgroundRatio(){
   if(!backgroundImage?.width||!backgroundImage?.height)return null;
@@ -581,24 +830,48 @@ function setCameraProjection(orthographic){
   camera.position.copy(previous.position);camera.quaternion.copy(previous.quaternion);
   isOrthographicCamera=next;
 }
-const renderer = new THREE.WebGLRenderer({antialias:true,alpha:false,preserveDrawingBuffer:true});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+const renderer = new THREE.WebGLRenderer({antialias:true,alpha:false,preserveDrawingBuffer:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.5));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.NoToneMapping;
 renderer.toneMappingExposure = 1;
 host.appendChild(renderer.domElement);
 let cards=Array(state.count).fill(null);
 let exportRenderer=null;
+let bloomVideoRenderer=null;
+let bloomVideoCamera=null;
+let bloomVideoCanvas=null;
 let dragFrom=null;
 let orbitDrag=null;
 let pickerSlot=0;
-let photoAdjustOpen=false;
+let photoEditSession=null;
+let photoEditDrag=null;
 let toastTimer;
 let renderQueued=false;
+// Loading many uploaded textures should produce one preview refresh instead
+// of one WebGL render per image. The counter is intentionally nestable because
+// texture restoration can be called from export cleanup while another batch is
+// still settling.
+let textureBatchDepth=0;
+const bloomAnimation={playing:false,lastTime:0,angle:0,speed:18,fps:30,quality:'1080p',entranceEnabled:false,entrancePreset:'radial',entranceMode:'overlap',recording:false,raf:0};
+const MIN_ANIMATION_DURATION=2;
+const animationTimeline={currentTime:0,duration:6,loopDuration:6,entranceDuration:2,playing:false};
+function selectedAnimationDuration(){
+  return THREE.MathUtils.clamp(Math.round(Number(animationTimeline.loopDuration)||Number(bloomAnimation.duration)||6),MIN_ANIMATION_DURATION,60);
+}
+const animationKeyframes=new Map();
+let applyingAnimationKeyframes=false;
+let animationTimelineRaf=0;
+let animationScrubRaf=0;
+let animationScrubValue=0;
+let animationToolsVisible=true;
+let loopAnimationEnabled=false;
+let timelineKeyframePanelOpen=true;
 let previewQualityJob=0;
 let interactivePreviewQuality=null;
 let interactivePreviewTimer=null;
 let interactivePreviewJob=0;
+let quickPreviewLastRenderAt=0;
 let modeSwitchJob=0;
 let lastCanvasSize={width:0,height:0};
 let cameraHalfSpan=(state.radius+cardHeightWorld()/2)*1.1;
@@ -606,6 +879,694 @@ let cameraDistance=12.6;
 let tiltGizmoVisible=false;
 
 function notify(message){toast.textContent=message;toast.classList.add('visible');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('visible'),2200)}
+function uiText(zh,en){return currentLanguage==='en'?en:zh}
+function durationLabel(value,digits=1){return `${formatUiNumber(value,digits)} ${currentLanguage==='en'?'s':'秒'}`}
+function syncPreviewRendererQuality(){
+  // The preview is interactive, so keep the framebuffer bounded on high-DPI
+  // screens. More cards means more fragments and draw calls; lowering only the
+  // preview pixel ratio keeps editing responsive without changing export size.
+  const deviceRatio=Math.min(window.devicePixelRatio||1,1.5);
+  const cardCount=Number(state.count)||0;
+  const loadCap=cardCount>64?1:cardCount>40?1.15:cardCount>24?1.3:1.5;
+  const qualityCap=PREVIEW_QUALITY_LEVELS[previewQuality]?.pixelRatioCap||1.5;
+  const target=Math.min(deviceRatio,loadCap,qualityCap);
+  if(Math.abs(renderer.getPixelRatio()-target)>.01){
+    renderer.setPixelRatio(target);
+    if(lastCanvasSize.width&&lastCanvasSize.height)renderer.setSize(lastCanvasSize.width,lastCanvasSize.height,false);
+  }
+}
+function formatUiNumber(value,digits=0){const number=Number(value);if(!Number.isFinite(number))return '0';return Number(number.toFixed(digits)).toString()}
+function animationKeyframeKey(inputId,mode=state.mode){return `${mode}:${inputId}`}
+function applyWallGroupRotation(){
+  wallGroup.quaternion.identity();
+  wallGroup.rotateOnWorldAxis(WORLD_X_AXIS,THREE.MathUtils.degToRad(tiltValueFor(state,'x')));
+  wallGroup.rotateOnWorldAxis(WORLD_Y_AXIS,THREE.MathUtils.degToRad(tiltValueFor(state,'y')));
+  wallGroup.rotateOnWorldAxis(WORLD_Z_AXIS,THREE.MathUtils.degToRad(tiltValueFor(state,'z')));
+}
+function syncBloomAnimationControls(){
+  ensureAnimationAnchors();
+  document.body.classList.toggle('animation-anchors-visible',loopAnimationEnabled);
+  const speed=THREE.MathUtils.clamp(Number(bloomAnimation.speed)||18,1,120);
+  bloomAnimation.speed=speed;
+  const fps=THREE.MathUtils.clamp(Math.round(Number(bloomAnimation.fps)||30),15,60);
+  bloomAnimation.fps=fps;
+  const entranceDuration=THREE.MathUtils.clamp(Number(animationTimeline.entranceDuration)||2,.5,12);
+  const entrancePresets=['radial','clockwise','reverse','fadeScale','depth','scatter'];
+  bloomAnimation.entrancePreset=entrancePresets.includes(bloomAnimation.entrancePreset)?bloomAnimation.entrancePreset:'radial';
+  bloomAnimation.entranceMode=['overlap','beforeLoop'].includes(bloomAnimation.entranceMode)?bloomAnimation.entranceMode:'overlap';
+  const sequentialEntrance=entranceStartsBeforeLoop();
+  const maxLoopDuration=sequentialEntrance?Math.max(MIN_ANIMATION_DURATION,60-entranceDuration):60;
+  const loopDuration=THREE.MathUtils.clamp(Math.round(Number(animationTimeline.loopDuration)||Number(bloomAnimation.duration)||6),MIN_ANIMATION_DURATION,maxLoopDuration);
+  animationTimeline.loopDuration=loopDuration;animationTimeline.entranceDuration=entranceDuration;
+  animationTimeline.duration=sequentialEntrance?loopDuration+entranceDuration:loopDuration;
+  bloomAnimation.duration=loopDuration;
+  const quality=BLOOM_VIDEO_RESOLUTIONS[bloomAnimation.quality]?bloomAnimation.quality:'1080p';
+  bloomAnimation.quality=quality;
+  document.querySelectorAll('[data-bloom-quality]').forEach(button=>{const active=button.dataset.bloomQuality===quality;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
+  document.querySelectorAll('[data-bloom-fps]').forEach(button=>{const active=Number(button.dataset.bloomFps)===fps;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
+  const entranceToggle=$('#entranceAnimationToggle');if(entranceToggle){entranceToggle.classList.toggle('active',bloomAnimation.entranceEnabled);entranceToggle.setAttribute('aria-pressed',String(bloomAnimation.entranceEnabled))}
+  const loopToggle=$('#loopAnimationToggle');if(loopToggle){loopToggle.classList.toggle('active',loopAnimationEnabled);loopToggle.setAttribute('aria-pressed',String(loopAnimationEnabled));const label=uiText(loopAnimationEnabled?'停用循环动画':'启用循环动画',loopAnimationEnabled?'Disable loop animation':'Enable loop animation');loopToggle.setAttribute('aria-label',label);loopToggle.title=label}
+  const entranceTimeline=$('#entranceTimeline');if(entranceTimeline){entranceTimeline.classList.toggle('mode-hidden',!animationToolsVisible);entranceTimeline.classList.toggle('entrance-enabled',bloomAnimation.entranceEnabled);document.body.classList.toggle('entrance-track-visible',animationToolsVisible)}
+  document.querySelectorAll('[data-entrance-preset]').forEach(button=>{const active=button.dataset.entrancePreset===bloomAnimation.entrancePreset;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
+  document.querySelectorAll('[data-entrance-duration]').forEach(button=>{const active=Math.abs(parseFloat(button.dataset.entranceDuration)-entranceDuration)<.01;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
+  document.querySelectorAll('[data-entrance-mode]').forEach(button=>{const active=button.dataset.entranceMode===bloomAnimation.entranceMode;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
+  const entranceDurationOutput=$('#entranceTimelineDuration');if(entranceDurationOutput)entranceDurationOutput.textContent=durationLabel(entranceDuration);
+  const entranceTimeOutput=$('#entranceTimelineCurrentTime');if(entranceTimeOutput)entranceTimeOutput.textContent=durationLabel(Math.min(animationTimeline.currentTime,entranceDuration));
+  const entranceScrubber=$('#entranceTimelineScrubber');if(entranceScrubber){entranceScrubber.max=entranceDuration;entranceScrubber.value=Math.min(animationTimeline.currentTime,entranceDuration)}
+  const entranceProgress=$('#entranceTimelineProgress');if(entranceProgress)entranceProgress.style.width=`${entranceDuration?Math.min(animationTimeline.currentTime,entranceDuration)/entranceDuration*100:0}%`;
+  const exportDuration=$('#exportTimelineDuration');if(exportDuration)exportDuration.textContent=durationLabel(selectedAnimationDuration());
+  if(state.mode==='bloom')animationTimeline.playing=bloomAnimation.playing;
+  syncAnimationTimeline();
+}
+function ensureAnimationAnchors(){
+  document.querySelectorAll('.settings-section .range-control').forEach(label=>{
+    const input=label.querySelector('input[type="range"]');if(!input)return;
+    const existing=label.querySelector('.keyframe-anchor');
+    if(existing){
+      const frames=animationKeyframes.get(animationKeyframeKey(input.id))||[];
+      const current=frames.some(frame=>Math.abs(frame.time-animationTimeline.currentTime)<.051);
+      existing.classList.toggle('active',current);
+      existing.classList.toggle('has-keyframes',frames.length>0);
+      existing.setAttribute('aria-pressed',String(current));
+      existing.setAttribute('aria-label',current?uiText('删除当前时间锚点','Remove current keyframe'):uiText('添加动画锚点','Add animation keyframe'));
+      existing.title=current?uiText('删除当前时间锚点','Remove current keyframe'):frames.length?uiText('在当前时间添加锚点','Add keyframe at current time'):uiText('添加动画锚点','Add animation keyframe');
+      existing.textContent=current?'◆':'◇';
+      return;
+    }
+    const anchor=document.createElement('button');anchor.type='button';anchor.className='keyframe-anchor';anchor.dataset.anchorInput=input.id;anchor.setAttribute('aria-label',uiText('添加动画锚点','Add animation keyframe'));anchor.setAttribute('aria-pressed','false');anchor.title=uiText('添加动画锚点','Add animation keyframe');anchor.textContent='◇';
+    anchor.addEventListener('click',event=>{
+      event.preventDefault();event.stopPropagation();
+      const key=animationKeyframeKey(input.id),frames=animationKeyframes.get(key)||[];
+      const anchorTime=bloomAnimation.entranceEnabled?Math.max(animationTimeline.currentTime,loopTimelineStart()):animationTimeline.currentTime;
+      const index=frames.findIndex(frame=>Math.abs(frame.time-anchorTime)<.051);
+      if(index>=0){frames.splice(index,1);if(frames.length)animationKeyframes.set(key,frames);else animationKeyframes.delete(key);notify(uiText('已移除当前时间锚点','Removed keyframe'))}
+      else{frames.push({time:anchorTime,value:Number(input.value)});frames.sort((a,b)=>a.time-b.time);animationKeyframes.set(key,frames);notify(uiText('已添加当前时间锚点','Keyframe added'))}
+      ensureAnimationAnchors();syncAnimationTimeline();
+    });
+    label.prepend(anchor);
+  });
+}
+function keyframeValueAt(key,time){
+  const frames=animationKeyframes.get(key);if(!frames?.length)return null;
+  if(frames.length===1)return frames[0].value;
+  if(time<=frames[0].time)return frames[0].value;
+  const last=frames[frames.length-1];if(time>=last.time)return last.value;
+  for(let index=1;index<frames.length;index++){
+    const next=frames[index],previous=frames[index-1];
+    if(time<=next.time){const span=Math.max(.0001,next.time-previous.time),progress=(time-previous.time)/span;return previous.value+(next.value-previous.value)*progress}
+  }
+  return last.value;
+}
+function applyAnimationKeyframesAtCurrentTime(){
+  if(!loopAnimationEnabled||!animationKeyframes.size)return;
+  let cameraDirty=false;
+  applyingAnimationKeyframes=true;
+  try{
+    const prefix=`${state.mode}:`;
+    for(const key of animationKeyframes.keys()){
+      if(!key.startsWith(prefix))continue;
+      const inputId=key.slice(prefix.length);
+      const input=document.getElementById(inputId),value=keyframeValueAt(key,animationTimeline.currentTime);if(!input||value===null)continue;
+      if(inputId==='viewZoomInput'||inputId==='fovInput'||inputId==='cameraRotationInput'||inputId==='viewOffsetXInput'||inputId==='viewOffsetYInput')cameraDirty=true;
+      input.value=value;input.dispatchEvent(new Event('input',{bubbles:true}));
+    }
+  }finally{
+    applyingAnimationKeyframes=false;
+    updateTransforms(false,true);
+    if(cameraDirty)fitCamera(true);
+    render(false);
+  }
+}
+function upsertAnimationKeyframe(input){
+  if(!loopAnimationEnabled||applyingAnimationKeyframes||!input?.id||input.id==='timelineScrubber'||input.id.startsWith('bloomAnimation'))return;
+  const key=animationKeyframeKey(input.id),time=bloomAnimation.entranceEnabled?Math.max(animationTimeline.currentTime,loopTimelineStart()):animationTimeline.currentTime,frames=animationKeyframes.get(key)||[],existing=frames.find(frame=>Math.abs(frame.time-time)<.051);
+  if(existing)existing.value=Number(input.value);else frames.push({time,value:Number(input.value)});
+  frames.sort((a,b)=>a.time-b.time);animationKeyframes.set(key,frames);ensureAnimationAnchors();syncAnimationTimeline();
+}
+function updateDraggedKeyframeReadout(){
+  const loopTime=loopTimelineTime();
+  const scrubber=$('#timelineScrubber');if(scrubber)scrubber.value=loopTime;
+  const progress=$('#timelineProgress');if(progress)progress.style.width=`${animationTimeline.loopDuration?loopTime/animationTimeline.loopDuration*100:0}%`;
+  const currentTimeOutput=$('#timelineCurrentTimeOutput');if(currentTimeOutput)currentTimeOutput.textContent=durationLabel(loopTime);
+  const body=$('#timelineKeyframeBody'),playhead=$('#timelinePlayhead');
+  if(body&&playhead){const trackWidth=Math.max(0,body.clientWidth-120);playhead.style.left=`${92+trackWidth*THREE.MathUtils.clamp(loopTime/Math.max(.001,animationTimeline.loopDuration),0,1)}px`}
+}
+function attachKeyframeDrag(point,track,key,frame){
+  point.addEventListener('pointerdown',event=>{
+    if(event.button!==0)return;
+    event.preventDefault();event.stopPropagation();
+    const rect=track.getBoundingClientRect(),startTime=Number(frame.time),frames=animationKeyframes.get(key)||[],index=frames.indexOf(frame);
+    if(index<0||!rect.width)return;
+    let moved=false;
+    point.setPointerCapture?.(event.pointerId);point.classList.add('dragging');
+    const move=moveEvent=>{
+      const ratio=THREE.MathUtils.clamp((moveEvent.clientX-rect.left)/rect.width,0,1);
+      const localTime=Math.round(ratio*animationTimeline.loopDuration*10)/10;
+      const start=loopTimelineStart(),minimum=index>0?Math.max(start,frames[index-1].time+.1):start,maximum=index<frames.length-1?Math.min(start+animationTimeline.loopDuration,frames[index+1].time-.1):start+animationTimeline.loopDuration;
+      const nextTime=THREE.MathUtils.clamp(start+localTime,minimum,maximum);
+      if(Math.abs(nextTime-frame.time)<.001)return;
+      moved=true;frame.time=nextTime;frames.sort((a,b)=>a.time-b.time);
+      point.dataset.keyframeTime=String(nextTime);
+      point.style.left=`${animationTimeline.loopDuration?loopTimelineTime(nextTime)/animationTimeline.loopDuration*100:0}%`;
+      point.title=durationLabel(loopTimelineTime(nextTime));
+      animationTimeline.currentTime=nextTime;
+      applyAnimationKeyframesAtCurrentTime();
+      if(state.mode==='bloom')updateBloomAnimationPose();else if(bloomAnimation.entranceEnabled)applyEntranceAnimationPose();
+      render(false);updateDraggedKeyframeReadout();
+    };
+    const finish=finishEvent=>{
+      point.releasePointerCapture?.(finishEvent.pointerId);point.classList.remove('dragging');
+      point.removeEventListener('pointermove',move);point.removeEventListener('pointerup',finish);point.removeEventListener('pointercancel',finish);
+      if(moved){frames.sort((a,b)=>a.time-b.time);animationKeyframes.set(key,frames);syncAnimationTimeline();scheduleProjectSave()}
+    };
+    point.addEventListener('pointermove',move);point.addEventListener('pointerup',finish);point.addEventListener('pointercancel',finish);
+  });
+}
+function syncAnimationTimeline(){
+  const timeline=$('#animationTimeline');if(!timeline)return;
+  ensureAnimationAnchors();
+  timeline.classList.toggle('mode-hidden',!animationToolsVisible);
+  animationTimeline.entranceDuration=THREE.MathUtils.clamp(Number(animationTimeline.entranceDuration)||2,.5,12);
+  const maxLoopDuration=entranceStartsBeforeLoop()?Math.max(MIN_ANIMATION_DURATION,60-animationTimeline.entranceDuration):60;
+  animationTimeline.loopDuration=THREE.MathUtils.clamp(Number(animationTimeline.loopDuration)||Number(bloomAnimation.duration)||6,MIN_ANIMATION_DURATION,maxLoopDuration);
+  animationTimeline.duration=entranceStartsBeforeLoop()?animationTimeline.loopDuration+animationTimeline.entranceDuration:animationTimeline.loopDuration;
+  bloomAnimation.duration=animationTimeline.loopDuration;
+  animationTimeline.currentTime=THREE.MathUtils.clamp(Number(animationTimeline.currentTime)||0,0,animationTimeline.duration);
+  const loopTime=loopTimelineTime();
+  const scrubber=$('#timelineScrubber');if(scrubber){scrubber.max=animationTimeline.loopDuration;scrubber.value=loopTime}
+  const progress=$('#timelineProgress');if(progress)progress.style.width=`${animationTimeline.loopDuration?loopTime/animationTimeline.loopDuration*100:0}%`;
+  const currentTimeOutput=$('#timelineCurrentTimeOutput');if(currentTimeOutput)currentTimeOutput.textContent=durationLabel(loopTime);
+  const durationButton=$('#timelineDurationButton');if(durationButton){durationButton.textContent=durationLabel(animationTimeline.loopDuration);durationButton.append(document.createElement('i'))}
+  document.querySelectorAll('[data-timeline-duration]').forEach(button=>{const active=Number(button.dataset.timelineDuration)===animationTimeline.loopDuration;button.classList.toggle('active',active);button.setAttribute('aria-selected',String(active))});
+  const play=$('#timelinePlayButton');if(play){const blocked=!bloomAnimation.entranceEnabled&&!hasEnabledAnimationAnchors();play.innerHTML=animationTimeline.playing?`<svg class="timeline-pause-icon" viewBox="0 0 1024 1024" aria-hidden="true"><path d="${TIMELINE_PAUSE_ICON_PATH}" fill="currentColor"></path></svg>`:'▶';const label=animationTimeline.playing?uiText('暂停动画','Pause animation'):blocked?uiText('启用出现动画或添加锚点后播放动画','Enable entrance or add keyframes to play'):uiText('播放动画','Play animation');play.setAttribute('aria-label',label);play.setAttribute('title',label);play.setAttribute('aria-pressed',String(animationTimeline.playing));play.disabled=blocked}
+  const markers=$('#timelineMarkers');if(markers)markers.replaceChildren();
+  const panel=$('#timelineKeyframePanel'),body=$('#timelineKeyframeBody'),rows=$('#timelineKeyframeRows'),ruler=$('#timelineKeyframeRuler'),playhead=$('#timelinePlayhead'),countOutput=$('#timelineKeyframeCount');
+  if(!panel||!body||!rows||!ruler||!playhead)return;
+  const prefix=`${state.mode}:`,markerTimes=new Map();
+  for(const [key,frames] of animationKeyframes)if(key.startsWith(prefix))for(const frame of frames)markerTimes.set(frame.time,(markerTimes.get(frame.time)||0)+1);
+  const hasKeyframes=loopAnimationEnabled&&markerTimes.size>0;
+  panel.classList.toggle('mode-hidden',!hasKeyframes);
+  panel.classList.toggle('open',hasKeyframes&&timelineKeyframePanelOpen);
+  panel.setAttribute('aria-hidden',String(!hasKeyframes));
+  const panelToggle=$('#timelineKeyframeToggle');if(panelToggle)panelToggle.setAttribute('aria-expanded',String(hasKeyframes&&timelineKeyframePanelOpen));
+  if(countOutput)countOutput.textContent=String(markerTimes.size);
+  ruler.replaceChildren();rows.replaceChildren();
+  const rulerSteps=5;
+  for(let index=0;index<=rulerSteps;index++){
+    const tick=document.createElement('span');tick.className='timeline-keyframe-ruler-tick';const ratio=index/rulerSteps;tick.style.left=`${ratio*100}%`;tick.textContent=durationLabel(animationTimeline.loopDuration*ratio);ruler.append(tick);
+  }
+  for(const [key,frames] of animationKeyframes){
+    if(!key.startsWith(prefix)||!frames.length)continue;
+    const input=document.getElementById(key.slice(prefix.length));
+    const row=document.createElement('div');row.className='timeline-keyframe-row';
+    const label=document.createElement('span');label.className='timeline-keyframe-label';const source=input?.closest('.range-control')?.querySelector('span');label.textContent=source?.childNodes?.[0]?.textContent?.trim()||key.slice(prefix.length);row.append(label);
+    const track=document.createElement('div');track.className='timeline-keyframe-row-track';
+    for(const frame of frames){
+      const current=Math.abs(frame.time-animationTimeline.currentTime)<.051,localTime=THREE.MathUtils.clamp(frame.time-loopTimelineStart(),0,animationTimeline.loopDuration),point=document.createElement('button');point.type='button';point.className=`timeline-keyframe-point${current?' current':''}`;point.dataset.keyframeKey=key;point.dataset.keyframeTime=frame.time;point.style.left=`${animationTimeline.loopDuration?localTime/animationTimeline.loopDuration*100:0}%`;point.title=`${durationLabel(localTime)}${current?uiText(' · 当前',' · Current'):''}`;point.addEventListener('click',()=>setAnimationTimelineTime(Number(point.dataset.keyframeTime)));point.addEventListener('contextmenu',event=>{event.preventDefault();const removed=removeAnimationKeyframeAtTime(key,Number(point.dataset.keyframeTime));if(removed){notify(uiText('已删除当前参数锚点','Keyframe removed'));syncAnimationTimeline();scheduleProjectSave()}});attachKeyframeDrag(point,track,key,frame);track.append(point);
+    }
+    const removeTrack=document.createElement('button');removeTrack.type='button';removeTrack.className='timeline-keyframe-row-delete';removeTrack.textContent='×';removeTrack.setAttribute('aria-label',uiText('删除此行关键帧','Delete all keyframes on this track'));removeTrack.title=uiText('删除此行关键帧','Delete all keyframes on this track');removeTrack.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();if(!animationKeyframes.has(key))return;animationKeyframes.delete(key);ensureAnimationAnchors();syncAnimationTimeline();scheduleProjectSave();notify(uiText('已删除此行关键帧','Removed all keyframes from this track'))});
+    row.append(track,removeTrack);rows.append(row);
+  }
+  const playheadProgress=animationTimeline.loopDuration?loopTime/animationTimeline.loopDuration:0,trackWidth=Math.max(0,body.clientWidth-120);playhead.style.left=`${92+trackWidth*THREE.MathUtils.clamp(playheadProgress,0,1)}px`;
+}
+function removeAnimationKeyframeAtTime(key,time){
+  const frames=animationKeyframes.get(key);if(!frames?.length)return 0;
+  const remaining=frames.filter(frame=>Math.abs(frame.time-time)>=.051),removed=frames.length-remaining.length;
+  if(remaining.length)animationKeyframes.set(key,remaining);else animationKeyframes.delete(key);
+  return removed;
+}
+function removeAnimationKeyframesAtTime(time){
+  const prefix=`${state.mode}:`;let removed=0;
+  for(const [key,frames] of animationKeyframes){
+    if(!key.startsWith(prefix))continue;
+    const remaining=frames.filter(frame=>Math.abs(frame.time-time)>=.051);
+    removed+=frames.length-remaining.length;
+    if(remaining.length)animationKeyframes.set(key,remaining);else animationKeyframes.delete(key);
+  }
+  return removed;
+}
+function hasAnimationAnchors(mode=state.mode){
+  const prefix=`${mode}:`;
+  for(const [key,frames] of animationKeyframes)if(key.startsWith(prefix)&&frames?.length)return true;
+  return false;
+}
+function hasEnabledAnimationAnchors(mode=state.mode){return loopAnimationEnabled&&hasAnimationAnchors(mode)}
+function entranceStartsBeforeLoop(){return bloomAnimation.entranceEnabled&&bloomAnimation.entranceMode==='beforeLoop'}
+function loopTimelineStart(){return entranceStartsBeforeLoop()?animationTimeline.entranceDuration:0}
+function loopTimelineTime(value=animationTimeline.currentTime){return THREE.MathUtils.clamp(Number(value)-loopTimelineStart(),0,animationTimeline.loopDuration)}
+function internalTimeFromLoopTimeline(value){return THREE.MathUtils.clamp(Number(value)||0,0,animationTimeline.loopDuration)+loopTimelineStart()}
+function shiftAnimationKeyframesForEntrance(delta){
+  if(!delta)return;
+  const prefix=`${state.mode}:`;
+  for(const [key,frames] of animationKeyframes){
+    if(!key.startsWith(prefix))continue;
+    frames.forEach(frame=>{frame.time=Math.max(0,(Number(frame.time)||0)+delta)});
+    frames.sort((a,b)=>a.time-b.time);
+  }
+}
+function setAnimationTimelineTime(value){
+  animationTimeline.currentTime=THREE.MathUtils.clamp(Number(value)||0,0,animationTimeline.duration);
+  applyAnimationKeyframesAtCurrentTime();
+  if(state.mode==='bloom'){
+    updateBloomAnimationPose();
+  }else if(bloomAnimation.entranceEnabled){
+    applyEntranceAnimationPose();
+  }
+  if(bloomAnimation.recording)renderBloomVideoFrame();else render(false);
+  syncAnimationTimeline();
+}
+function animationTimelineFrame(time){
+  if(!animationTimeline.playing){animationTimelineRaf=0;return}
+  const delta=animationTimeline._lastTime?Math.min(80,time-animationTimeline._lastTime):0;animationTimeline._lastTime=time;
+  animationTimeline.currentTime+=delta/1000;
+  const hasLoop=hasEnabledAnimationAnchors(),playEnd=hasLoop?animationTimeline.duration:(bloomAnimation.entranceEnabled?animationTimeline.entranceDuration:animationTimeline.duration);
+  if(animationTimeline.currentTime>playEnd){
+    if(hasLoop)animationTimeline.currentTime=loopTimelineStart();
+    else {animationTimeline.currentTime=playEnd;animationTimeline.playing=false;animationTimeline._lastTime=0}
+  }
+  setAnimationTimelineTime(animationTimeline.currentTime);
+  if(!animationTimeline.playing){animationTimelineRaf=0;syncAnimationTimeline();return}
+  animationTimelineRaf=requestAnimationFrame(animationTimelineFrame);
+}
+function setAnimationTimelinePlaying(playing){
+  const canPlay=bloomAnimation.entranceEnabled||hasEnabledAnimationAnchors();
+  animationTimeline.playing=Boolean(playing)&&canPlay;
+  if(animationTimeline.playing){const hasLoop=hasEnabledAnimationAnchors(),playEnd=hasLoop?animationTimeline.duration:(bloomAnimation.entranceEnabled?animationTimeline.entranceDuration:animationTimeline.duration);if(animationTimeline.currentTime>=playEnd-.001)animationTimeline.currentTime=hasLoop?loopTimelineStart():0}
+  animationTimeline._lastTime=0;
+  syncAnimationTimeline();
+  if(animationTimeline.playing&&!animationTimelineRaf)animationTimelineRaf=requestAnimationFrame(animationTimelineFrame);
+}
+function queueAnimationTimelineTime(value){
+  animationScrubValue=value;
+  if(animationScrubRaf)return;
+  animationScrubRaf=requestAnimationFrame(()=>{animationScrubRaf=0;setAnimationTimelineTime(animationScrubValue)});
+}
+function prepareBloomVideoRenderer(width,height){
+  if(!bloomVideoRenderer){
+    bloomVideoRenderer=new THREE.WebGLRenderer({antialias:true,alpha:false,preserveDrawingBuffer:true});
+    bloomVideoRenderer.setPixelRatio(1);bloomVideoRenderer.outputColorSpace=THREE.SRGBColorSpace;bloomVideoRenderer.toneMapping=THREE.NoToneMapping;bloomVideoRenderer.toneMappingExposure=1;
+    bloomVideoRenderer.domElement.setAttribute('aria-hidden','true');
+    bloomVideoRenderer.domElement.style.cssText='position:fixed;left:-10000px;top:-10000px;width:1px;height:1px;opacity:0;pointer-events:none;';
+    document.body.appendChild(bloomVideoRenderer.domElement);
+  }
+  if(backgroundTexture){
+    backgroundTexture.minFilter=THREE.LinearFilter;
+    backgroundTexture.magFilter=THREE.LinearFilter;
+    backgroundTexture.generateMipmaps=false;
+    backgroundTexture.anisotropy=Math.min(bloomVideoRenderer.capabilities.getMaxAnisotropy(),8);
+    backgroundTexture.needsUpdate=true;
+  }
+  bloomVideoRenderer.setSize(width,height,false);
+  // Encode the same WebGL canvas that is used for the PNG export. The old
+  // WebGL -> 2D canvas copy introduced an extra browser color-management
+  // conversion, which could make 4K video colors differ from the preview and
+  // the PNG export (especially after PowerPoint re-encodes the video).
+  bloomVideoCanvas=bloomVideoRenderer.domElement;
+  bloomVideoCamera=camera.clone();
+  if(bloomVideoCamera.isPerspectiveCamera){bloomVideoCamera.aspect=width/Math.max(1,height);bloomVideoCamera.updateProjectionMatrix()}
+  else if(bloomVideoCamera.isOrthographicCamera){
+    const halfHeight=Math.max(.1,(camera.top-camera.bottom)/2),aspect=width/Math.max(1,height);
+    bloomVideoCamera.left=-halfHeight*aspect;bloomVideoCamera.right=halfHeight*aspect;bloomVideoCamera.top=halfHeight;bloomVideoCamera.bottom=-halfHeight;bloomVideoCamera.updateProjectionMatrix();
+  }
+  bloomVideoRenderer.setClearColor(0x000000,scene.background?1:0);
+  renderBloomVideoFrame();
+}
+function syncBloomVideoCamera(){
+  if(!bloomVideoCamera||!camera)return;
+  camera.updateMatrixWorld(true);
+  bloomVideoCamera.position.copy(camera.position);
+  bloomVideoCamera.quaternion.copy(camera.quaternion);
+  bloomVideoCamera.scale.copy(camera.scale);
+  if(bloomVideoCamera.isPerspectiveCamera&&camera.isPerspectiveCamera){
+    bloomVideoCamera.fov=camera.fov;
+    bloomVideoCamera.near=camera.near;
+    bloomVideoCamera.far=camera.far;
+    bloomVideoCamera.aspect=bloomVideoCanvas?.width/Math.max(1,bloomVideoCanvas?.height||1);
+    bloomVideoCamera.updateProjectionMatrix();
+  }else if(bloomVideoCamera.isOrthographicCamera&&camera.isOrthographicCamera){
+    bloomVideoCamera.near=camera.near;
+    bloomVideoCamera.far=camera.far;
+    const halfHeight=Math.max(.1,(camera.top-camera.bottom)/2),aspect=(bloomVideoCanvas?.width||1)/Math.max(1,bloomVideoCanvas?.height||1);
+    bloomVideoCamera.left=-halfHeight*aspect;
+    bloomVideoCamera.right=halfHeight*aspect;
+    bloomVideoCamera.top=halfHeight;
+    bloomVideoCamera.bottom=-halfHeight;
+    bloomVideoCamera.updateProjectionMatrix();
+  }
+  bloomVideoCamera.updateMatrixWorld(true);
+}
+function renderBloomVideoFrame(){
+  if(!bloomVideoRenderer||!bloomVideoCamera)return;
+  syncBloomVideoCamera();
+  bloomVideoRenderer.render(scene,bloomVideoCamera);
+}
+function entranceEase(value){
+  const t=THREE.MathUtils.clamp(Number(value)||0,0,1);
+  return t*t*(3-2*t);
+}
+function bloomEntranceProgress(index,count,time,duration){
+  const safeCount=Math.max(1,count),normalizedIndex=index/Math.max(1,safeCount-1);
+  const preset=bloomAnimation.entrancePreset;
+  const orderedIndex=preset==='reverse'?1-normalizedIndex:normalizedIndex;
+  // Radial and fade/scale presets start together; directional, depth and
+  // scatter presets use a short stagger so the wall reads in a clear order.
+  const simultaneous=preset==='radial'||preset==='fadeScale';
+  const delay=simultaneous?0:duration*(preset==='depth'?.24:.42)*orderedIndex;
+  const span=Math.max(.001,duration*(simultaneous?.82:preset==='depth'?.72:.58));
+  return entranceEase((time-delay)/span);
+}
+function entranceScatterVector(index,scale){
+  const seed=(value)=>{
+    const result=Math.sin((index+1)*value)*43758.5453;
+    return result-Math.floor(result);
+  };
+  return new THREE.Vector3((seed(12.9898)-.5)*2,(seed(78.233)-.5)*2,(seed(39.425)-.5)*1.2).multiplyScalar(scale);
+}
+function updateBloomAnimationPose(){
+  if(state.mode!=='bloom')return;
+  const count=state.count,ringRadius=state.radius,phase=THREE.MathUtils.degToRad(state.contentRotation),width=cardWidthWorld();
+  const entrance=bloomAnimation.entranceEnabled;
+  const entranceDuration=Math.max(.001,animationTimeline.entranceDuration||2);
+  const time=THREE.MathUtils.clamp(animationTimeline.currentTime,0,entranceDuration);
+  const photoOpacity=THREE.MathUtils.clamp(Number(state.photoOpacity)||0,0,100)/100;
+  for(let i=0;i<count;i++){
+    const card=cards[i];if(!card)continue;
+    const pose=bloomCardPose(i,count,ringRadius,state.spacing/DESIGN_SCALE,phase,width);
+    const progress=entrance?bloomEntranceProgress(i,count,time,entranceDuration):1;
+    const radial=pose.position.clone().normalize();
+    const preset=bloomAnimation.entrancePreset;
+    const startRadius=preset==='fadeScale'?ringRadius*.92:ringRadius*.22;
+    const animatedRadius=entrance?startRadius+(ringRadius-startRadius)*progress:ringRadius;
+    const scaleProgress=entrance?(preset==='fadeScale'?.62+.38*progress:preset==='depth'?.72+.28*progress:.42+.58*progress):1;
+    const opacity=photoOpacity*progress;
+    card.mesh.position.copy(radial.multiplyScalar(animatedRadius));
+    if(entrance&&preset==='depth')card.mesh.position.z+=(1-progress)*4;
+    if(entrance&&preset==='scatter')card.mesh.position.add(entranceScatterVector(i,Math.max(.8,ringRadius*.72)*(1-progress)));
+    card.mesh.quaternion.copy(pose.quaternion);
+    const cardScale=pose.width/cardWidthWorld();
+    card.mesh.scale.set(cardScale*scaleProgress,scaleProgress,cardScale*scaleProgress);
+    card.mesh.userData.slot=i;
+    card.frontMaterial.opacity=opacity;card.backMaterial.opacity=opacity;
+    card.frontMaterial.depthWrite=opacity>=.999;card.backMaterial.depthWrite=opacity>=.999;
+    card.backMesh.position.copy(card.mesh.position);card.backMesh.quaternion.copy(card.mesh.quaternion);card.backMesh.scale.copy(card.mesh.scale);card.backMesh.userData.slot=i;
+  }
+  wallGroup.updateMatrixWorld(true);
+}
+function applyEntranceAnimationPose(){
+  if(!bloomAnimation.entranceEnabled||state.mode==='bloom')return;
+  const duration=Math.max(.001,animationTimeline.entranceDuration||2);
+  const time=THREE.MathUtils.clamp(animationTimeline.currentTime,0,duration);
+  const photoOpacity=THREE.MathUtils.clamp(Number(state.photoOpacity)||0,0,100)/100;
+  const count=Math.max(1,state.count);
+  for(let i=0;i<count;i++){
+    const card=cards[i];if(!card)continue;
+    const preset=bloomAnimation.entrancePreset;
+    const progress=bloomEntranceProgress(i,count,time,duration);
+    const positionScale=preset==='fadeScale'?(.92+.08*progress):(.22+.78*progress);
+    const scaleProgress=preset==='fadeScale'?.62+.38*progress:preset==='depth'?.72+.28*progress:.42+.58*progress;
+    const basePosition=card.entranceBasePosition||card.mesh.position.clone();
+    const baseScale=card.entranceBaseScale||card.mesh.scale.clone();
+    card.mesh.position.copy(basePosition).multiplyScalar(positionScale);
+    if(preset==='depth')card.mesh.position.z+=(1-progress)*8;
+    if(preset==='scatter')card.mesh.position.add(entranceScatterVector(i,Math.max(cardWidthWorld(),cardHeightWorld())*2.2*(1-progress)));
+    card.mesh.scale.copy(baseScale).multiplyScalar(scaleProgress);
+    card.frontMaterial.opacity=photoOpacity*progress;card.backMaterial.opacity=photoOpacity*progress;
+    card.frontMaterial.depthWrite=progress>=.999&&photoOpacity>=.999;card.backMaterial.depthWrite=progress>=.999&&photoOpacity>=.999;
+    card.frontMaterial.needsUpdate=true;card.backMaterial.needsUpdate=true;
+    card.backMesh.position.copy(card.mesh.position);card.backMesh.quaternion.copy(card.mesh.quaternion);card.backMesh.scale.copy(card.mesh.scale);
+  }
+  wallGroup.updateMatrixWorld(true);
+}
+function bloomAnimationFrame(time){
+  if(!bloomAnimation.playing){bloomAnimation.raf=0;return}
+  const delta=bloomAnimation.lastTime?Math.min(80,time-bloomAnimation.lastTime):0;
+  bloomAnimation.lastTime=time;
+  const hasLoop=hasEnabledAnimationAnchors(),loopStart=loopTimelineStart(),hasEntrance=bloomAnimation.entranceEnabled,playEnd=hasLoop?animationTimeline.duration:(hasEntrance?animationTimeline.entranceDuration:animationTimeline.duration);
+  let finished=false;
+  animationTimeline.currentTime+=delta/1000;
+  if(animationTimeline.currentTime>=playEnd){
+    if(hasLoop){animationTimeline.currentTime=loopStart}
+    else {animationTimeline.currentTime=playEnd;finished=true}
+  }
+  applyAnimationKeyframesAtCurrentTime();
+  {
+    const loopTime=loopTimelineTime();
+    const scrubber=$('#timelineScrubber');if(scrubber)scrubber.value=loopTime;
+    const progress=$('#timelineProgress');if(progress)progress.style.width=`${animationTimeline.loopDuration?loopTime/animationTimeline.loopDuration*100:0}%`;
+    const currentTimeOutput=$('#timelineCurrentTimeOutput');if(currentTimeOutput)currentTimeOutput.textContent=durationLabel(loopTime);
+    const playhead=$('#timelinePlayhead'),body=$('#timelineKeyframeBody');if(playhead&&body){const trackWidth=Math.max(0,body.clientWidth-120);playhead.style.left=`${92+trackWidth*THREE.MathUtils.clamp(loopTime/Math.max(.001,animationTimeline.loopDuration),0,1)}px`}
+  }
+  updateBloomAnimationPose();
+  if(bloomAnimation.recording)renderBloomVideoFrame();else render(false);
+  if(finished){
+    bloomAnimation.playing=false;animationTimeline.playing=false;bloomAnimation.lastTime=0;bloomAnimation.raf=0;syncBloomAnimationControls();return;
+  }
+  bloomAnimation.raf=requestAnimationFrame(bloomAnimationFrame);
+}
+function setBloomAnimationPlaying(playing){
+  const canPlay=bloomAnimation.entranceEnabled||hasEnabledAnimationAnchors();
+  bloomAnimation.playing=Boolean(playing)&&state.mode==='bloom'&&canPlay;
+  if(bloomAnimation.playing&&((!hasEnabledAnimationAnchors()&&bloomAnimation.entranceEnabled&&animationTimeline.currentTime>=animationTimeline.entranceDuration-.001)||animationTimeline.currentTime>=animationTimeline.duration-.001))animationTimeline.currentTime=0;
+  animationTimeline.playing=bloomAnimation.playing;
+  bloomAnimation.lastTime=0;
+  syncBloomAnimationControls();
+  $('#contentRotationInput').value=state.contentRotation;
+  $('#contentRotationOutput').textContent=`${Math.round(state.contentRotation)}°`;
+  updateTransforms(false,true);
+  if(!bloomAnimation.playing&&!bloomAnimation.recording)scheduleProjectSave();
+  if(bloomAnimation.playing&&!bloomAnimation.raf)bloomAnimation.raf=requestAnimationFrame(bloomAnimationFrame);
+}
+function stopBloomAnimation(){setBloomAnimationPlaying(false)}
+function setExportAnimationPlaying(playing){
+  if(state.mode==='bloom')setBloomAnimationPlaying(playing);
+  else setAnimationTimelinePlaying(playing);
+}
+function restoreExportAnimationPose(){
+  applyAnimationKeyframesAtCurrentTime();
+  if(state.mode==='bloom')updateBloomAnimationPose();
+  else if(bloomAnimation.entranceEnabled)applyEntranceAnimationPose();
+  render(false);
+}
+async function exportBloomAnimationOffline(format='webm'){
+  const isMp4=format==='mp4';
+  // WebCodecs encodes the frames with inter-frame compression and keeps the
+  // exact timestamps. MP4 uses H.264 for PowerPoint compatibility; WebM uses
+  // VP9/VP8 for efficient browser playback.
+  if(typeof VideoEncoder==='undefined'||typeof VideoFrame==='undefined')return false;
+  const fps=THREE.MathUtils.clamp(Math.round(Number(bloomAnimation.fps)||30),15,60);
+  const loopDuration=selectedAnimationDuration();
+  animationTimeline.loopDuration=loopDuration;
+  const duration=loopDuration;
+  bloomAnimation.duration=loopDuration;
+  const quality=BLOOM_VIDEO_RESOLUTIONS[bloomAnimation.quality]?bloomAnimation.quality:'1080p';
+  const targetDimensions=dimensionsForAspectRatio(`${state.width}:${state.height}`,BLOOM_VIDEO_RESOLUTIONS[quality]);
+  const targetWidth=targetDimensions.width,targetHeight=targetDimensions.height;
+  const wasPlaying=state.mode==='bloom'?bloomAnimation.playing:animationTimeline.playing,beforeRotation=Number(state.contentRotation)||0,beforeTimelineTime=animationTimeline.currentTime;
+  const frameCount=Math.max(1,Math.ceil(duration*fps));
+  let output=null,fullResolutionTextures=false;
+  try{
+    // Show feedback before codec probing and the high-resolution renderer are
+    // prepared. With many uploaded images those steps can take several
+    // seconds, and failures there previously looked like a dead export button.
+    openExportProgress(frameCount,uiText(isMp4?'导出 MP4':'导出 WebM',isMp4?'Export MP4':'Export WebM'));
+    updateExportProgress(0,frameCount,uiText('正在准备导出…','Preparing export…'));
+    await new Promise(resolve=>requestAnimationFrame(resolve));
+    // Scale bitrate with pixels and frame rate, while keeping quality-specific
+    // ceilings for 4K and 8K exports. Variable bitrate preserves photo detail.
+    // A visually high-quality variable bitrate with a smaller file target.
+    // The previous floor/cap made short 1080p clips unnecessarily large.
+    const bitrate=bloomVideoBitrate(quality,targetWidth,targetHeight,fps);
+    // Some browser H.264 encoders reject a high bitrate even when they can
+    // encode the same dimensions. Probe progressively smaller rates before
+    // reporting that MP4 is unavailable, while keeping the first successful
+    // rate for the actual export.
+    const bitrateCandidates=isMp4?[...new Set([bitrate,Math.min(bitrate,50_000_000),Math.min(bitrate,24_000_000),12_000_000])]:[bitrate];
+    let codec=null,encoderQuality=null;
+    for(const candidateBitrate of bitrateCandidates){
+      const candidateQuality=new Quality({bitrate:candidateBitrate,bitrateMode:'variable'});
+      const codecCandidates=isMp4?['avc']:['vp9','vp8'];
+      for(const candidateCodec of codecCandidates){
+        if(await canEncodeVideo(candidateCodec,{width:targetWidth,height:targetHeight,frameRate:fps,quality:candidateQuality})){
+          codec=candidateCodec;encoderQuality=candidateQuality;break;
+        }
+      }
+      if(codec)break;
+    }
+    if(!codec){closeExportProgress(false);return false}
+    if(wasPlaying)setExportAnimationPlaying(false);
+    bloomAnimation.recording=true;syncBloomAnimationControls();
+    await switchToFullResolutionTextures();
+    fullResolutionTextures=true;
+    prepareBloomVideoRenderer(targetWidth,targetHeight);
+    const target=new BufferTarget();
+    output=new Output({format:isMp4?new Mp4OutputFormat():new WebMOutputFormat(),target});
+    const keyFrameEvery=Math.max(1,Math.round(fps*4));
+    const videoSource=new CanvasSource(bloomVideoCanvas,{codec,quality:encoderQuality,keyFrameInterval:4});
+    output.addVideoTrack(videoSource);
+    await output.start();
+    updateExportProgress(0,frameCount,uiText('正在渲染并编码…','Rendering and encoding…'));
+    for(let frame=0;frame<frameCount;frame++){
+      checkExportCancelled();
+      animationTimeline.currentTime=frame/fps;
+      applyAnimationKeyframesAtCurrentTime();
+      if(state.mode==='bloom')updateBloomAnimationPose();else if(bloomAnimation.entranceEnabled)applyEntranceAnimationPose();
+      renderBloomVideoFrame();
+      await videoSource.add(frame/fps,1/fps,{keyFrame:frame===0||frame%keyFrameEvery===0});
+      updateExportProgress(frame+1,frameCount);
+      if(frame%2===0)await new Promise(resolve=>setTimeout(resolve,0));
+    }
+    await output.finalize();
+    const extension=isMp4?'mp4':'webm',mimeType=isMp4?'video/mp4':'video/webm';
+    const blob=new Blob([target.buffer],{type:mimeType});
+    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`photo-wall-bloom-${quality}-${duration}s.${extension}`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
+    closeExportProgress(true);
+    notify(uiText(`已导出 ${quality} · ${duration} 秒 ${isMp4?'MP4':'WebM'}`,`Exported ${quality} · ${duration} s ${isMp4?'MP4':'WebM'}`));
+  }catch(error){
+    console.error('WebCodecs 动画导出失败',error);
+    if(output&&output.state!=='finalized'&&output.state!=='canceled')await output.cancel().catch(()=>{});
+    const cancelled=error?.name==='ExportCancelled';
+    closeExportProgress(false);
+    if(cancelled){notify(uiText('已取消导出','Export cancelled'));return true}
+    return false;
+  }finally{
+    if(fullResolutionTextures)await restorePreviewTextures().catch(()=>{});
+    if(bloomAnimation.recording||wasPlaying||animationTimeline.playing){
+      setExportAnimationPlaying(false);
+      bloomAnimation.angle=THREE.MathUtils.euclideanModulo(beforeRotation,360);state.contentRotation=beforeRotation;animationTimeline.currentTime=beforeTimelineTime;
+      $('#contentRotationInput').value=beforeRotation;$('#contentRotationOutput').textContent=`${Math.round(beforeRotation)}°`;
+      bloomAnimation.recording=false;syncBloomAnimationControls();
+      restoreExportAnimationPose();
+      if(wasPlaying)setExportAnimationPlaying(true);
+    }
+  }
+  return true;
+}
+async function exportBloomAnimationWebMWriterFallback(){
+  if(typeof WebMWriter!=='function')return false;
+  const fps=THREE.MathUtils.clamp(Math.round(Number(bloomAnimation.fps)||30),15,60);
+  const loopDuration=selectedAnimationDuration();
+  animationTimeline.loopDuration=loopDuration;
+  const duration=loopDuration;
+  bloomAnimation.duration=loopDuration;
+  const quality=BLOOM_VIDEO_RESOLUTIONS[bloomAnimation.quality]?bloomAnimation.quality:'1080p';
+  const targetDimensions=dimensionsForAspectRatio(`${state.width}:${state.height}`,BLOOM_VIDEO_RESOLUTIONS[quality]);
+  const targetWidth=targetDimensions.width,targetHeight=targetDimensions.height;
+  const wasPlaying=state.mode==='bloom'?bloomAnimation.playing:animationTimeline.playing,beforeRotation=Number(state.contentRotation)||0,beforeTimelineTime=animationTimeline.currentTime;
+  const frameCount=Math.max(1,Math.ceil(duration*fps));
+  if(wasPlaying)setExportAnimationPlaying(false);
+  let writer,fullResolutionTextures=false;
+  bloomAnimation.recording=true;syncBloomAnimationControls();
+  try{
+    openExportProgress(frameCount,uiText('导出 WebM','Export WebM'));
+    updateExportProgress(0,frameCount,uiText('正在准备导出…','Preparing export…'));
+    await new Promise(resolve=>requestAnimationFrame(resolve));
+    await switchToFullResolutionTextures();
+    fullResolutionTextures=true;
+    prepareBloomVideoRenderer(targetWidth,targetHeight);
+    writer=new WebMWriter({quality:quality==='8K'?.995:quality==='4K'?.985:.92,frameRate:fps});
+    updateExportProgress(0,frameCount,uiText('正在渲染并编码…','Rendering and encoding…'));
+    for(let frame=0;frame<frameCount;frame++){
+      checkExportCancelled();
+      animationTimeline.currentTime=frame/fps;
+      applyAnimationKeyframesAtCurrentTime();
+      if(state.mode==='bloom')updateBloomAnimationPose();else if(bloomAnimation.entranceEnabled)applyEntranceAnimationPose();
+      renderBloomVideoFrame();
+      writer.addFrame(bloomVideoCanvas);
+      updateExportProgress(frame+1,frameCount);
+      if(frame%4===0)await new Promise(resolve=>setTimeout(resolve,0));
+    }
+    const blob=await writer.complete();
+    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`photo-wall-bloom-${quality}-${duration}s.webm`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
+    closeExportProgress(true);
+    notify(uiText(`已导出 ${quality} · ${duration} 秒 WebM`,`Exported ${quality} · ${duration} s WebM`));
+  }catch(error){console.error('动画导出失败',error);closeExportProgress(false);notify(error?.name==='ExportCancelled'?uiText('已取消导出','Export cancelled'):uiText('动画导出失败，请重试','Animation export failed. Please try again'))}
+  finally{
+    if(fullResolutionTextures)await restorePreviewTextures().catch(()=>{});
+    setExportAnimationPlaying(false);
+    bloomAnimation.angle=THREE.MathUtils.euclideanModulo(beforeRotation,360);state.contentRotation=beforeRotation;animationTimeline.currentTime=beforeTimelineTime;
+    $('#contentRotationInput').value=beforeRotation;$('#contentRotationOutput').textContent=`${Math.round(beforeRotation)}°`;
+    bloomAnimation.recording=false;syncBloomAnimationControls();
+    restoreExportAnimationPose();
+    if(wasPlaying)setExportAnimationPlaying(true);
+  }
+  return true;
+}
+async function exportBloomAnimation(format='webm'){
+  if(bloomAnimation.recording){notify(uiText('已有导出任务正在进行','An export is already in progress'));return}
+  if(format==='mp4'){
+    if(!(await exportBloomAnimationOffline('mp4'))){
+      const message=bloomAnimation.quality==='8K'
+        ?uiText('当前浏览器或设备不支持 8K H.264，建议使用 4K MP4 或 8K WebM','This browser or device does not support 8K H.264; use 4K MP4 or 8K WebM')
+        :uiText('当前浏览器不支持 MP4/H.264 导出','This browser does not support MP4/H.264 export');
+      notify(message);
+    }
+    return;
+  }
+  if(await exportBloomAnimationOffline())return;
+  if(await exportBloomAnimationWebMWriterFallback())return;
+  const canvas=renderer.domElement;
+  if(typeof canvas.captureStream!=='function'||typeof MediaRecorder==='undefined'){notify(uiText('当前浏览器不支持 WebM 录制','This browser does not support WebM recording'));return}
+  const fps=THREE.MathUtils.clamp(Math.round(Number(bloomAnimation.fps)||30),15,60);
+  const loopDuration=selectedAnimationDuration();
+  animationTimeline.loopDuration=loopDuration;
+  const duration=loopDuration;
+  bloomAnimation.duration=loopDuration;
+  const mimeCandidates=['video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'];
+  const mimeType=mimeCandidates.find(type=>typeof MediaRecorder.isTypeSupported!=='function'||MediaRecorder.isTypeSupported(type));
+  if(!mimeType){notify(uiText('当前浏览器没有可用的 WebM 编码器','No WebM encoder is available in this browser'));return}
+  const quality=BLOOM_VIDEO_RESOLUTIONS[bloomAnimation.quality]?bloomAnimation.quality:'1080p';
+  const targetDimensions=dimensionsForAspectRatio(`${state.width}:${state.height}`,BLOOM_VIDEO_RESOLUTIONS[quality]);
+  const targetWidth=targetDimensions.width,targetHeight=targetDimensions.height;
+  const wasPlaying=state.mode==='bloom'?bloomAnimation.playing:animationTimeline.playing,beforeRotation=Number(state.contentRotation)||0,beforeTimelineTime=animationTimeline.currentTime;
+  if(bloomAnimation.entranceEnabled){
+    animationTimeline.currentTime=0;
+    updateBloomAnimationPose();
+    render(false);
+  }
+  const frameCount=Math.max(1,Math.ceil(duration*fps));
+  let stream=null,recorder,progressTimer=null,fullResolutionTextures=false;
+  const chunks=[];
+  bloomAnimation.recording=true;syncBloomAnimationControls();
+  try{
+    openExportProgress(frameCount,uiText('导出 WebM','Export WebM'));
+    updateExportProgress(0,frameCount,uiText('正在准备导出…','Preparing export…'));
+    await new Promise(resolve=>requestAnimationFrame(resolve));
+    await switchToFullResolutionTextures();
+    fullResolutionTextures=true;
+    prepareBloomVideoRenderer(targetWidth,targetHeight);
+    stream=bloomVideoCanvas.captureStream(fps);
+    // Keep the MediaRecorder fallback at the same high-quality bitrate range
+    // as the offline encoder. The old 4 Mbps floor made 4K photo walls look
+    // soft even though the source canvas itself was rendered at 4K.
+    const videoBitsPerSecond=bloomVideoBitrate(quality,targetWidth,targetHeight,fps);
+    recorder=new MediaRecorder(stream,{mimeType,videoBitsPerSecond});
+    const blob=await new Promise((resolve,reject)=>{
+      recorder.ondataavailable=event=>{if(event.data?.size)chunks.push(event.data)};
+      recorder.onerror=event=>reject(event.error||new Error('录制失败'));
+      recorder.onstop=()=>resolve(new Blob(chunks,{type:mimeType}));
+      recorder.start(250);
+      setExportAnimationPlaying(true);
+      progressTimer=setInterval(()=>updateExportProgress(Math.min(frameCount,Math.floor(animationTimeline.currentTime*fps)),frameCount,uiText('正在录制视频…','Recording video…')),200);
+      setTimeout(()=>{if(recorder.state!=='inactive')recorder.stop()},duration*1000);
+    });
+    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`photo-wall-bloom-${quality}-${duration}s.webm`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1500);
+    updateExportProgress(frameCount,frameCount,uiText('正在完成文件…','Finalizing file…'));
+    closeExportProgress(true);
+    notify(uiText(`已导出 ${quality} · ${duration} 秒 WebM`,`Exported ${quality} · ${duration} s WebM`));
+  }catch(error){console.error('动画导出失败',error);closeExportProgress(false);notify(uiText('动画导出失败，请重试','Animation export failed. Please try again'))}
+  finally{
+    if(fullResolutionTextures)await restorePreviewTextures().catch(()=>{});
+    if(progressTimer)clearInterval(progressTimer);
+    if(recorder&&recorder.state!=='inactive')recorder.stop();
+    stream?.getTracks().forEach(track=>track.stop());
+    setExportAnimationPlaying(false);
+    bloomAnimation.angle=THREE.MathUtils.euclideanModulo(beforeRotation,360);state.contentRotation=beforeRotation;animationTimeline.currentTime=beforeTimelineTime;
+    $('#contentRotationInput').value=beforeRotation;$('#contentRotationOutput').textContent=`${Math.round(beforeRotation)}°`;
+    bloomAnimation.recording=false;syncBloomAnimationControls();
+    restoreExportAnimationPose();
+    if(wasPlaying)setExportAnimationPlaying(true);
+  }
+}
 function gcd(a,b){while(b){const next=a%b;a=b;b=next}return a||1}
 function parseAspectRatio(value){
   const parts=String(value??'').trim().replace(/[×xX：]/g,':').replace(/\s+/g,'').split(/[:*\/]/).map(Number);
@@ -637,8 +1598,17 @@ function aspectRatioLabel(w,h){
   return value>=1?`${format(value)}:1`:`1:${format(1/value)}`;
 }
 function ratioName(w,h){return aspectRatioLabel(w,h)}
-function draw(){renderQueued=false;renderer.render(scene,camera);updateTiltGizmo();if(!stage?.classList.contains('project-loading'))scheduleProjectSave()}
-function render(){if(renderQueued)return;renderQueued=true;requestAnimationFrame(draw)}
+function draw(save=true){renderQueued=false;renderer.render(scene,camera);updateTiltGizmo();if(save&&!stage?.classList.contains('project-loading'))scheduleProjectSave()}
+function render(save=true){
+  if(bloomAnimation.recording)return;
+  if(applyingAnimationKeyframes)return;
+  if(previewQuality==='fast'&&(animationTimeline.playing||bloomAnimation.playing)){
+    const now=performance.now();
+    if(now-quickPreviewLastRenderAt<1000/24)return;
+    quickPreviewLastRenderAt=now;
+  }
+  if(renderQueued)return;renderQueued=true;requestAnimationFrame(()=>draw(save))
+}
 function wrapDegrees(value){return THREE.MathUtils.euclideanModulo(value+180,360)-180}
 function cardWidthWorld(){return state.cardWidth/DESIGN_SCALE}
 function cardHeightWorld(){return state.cardHeight/DESIGN_SCALE}
@@ -649,11 +1619,33 @@ function ringLayoutRadius(){
   if(!isRingMode())return state.radius;
   return state.radius;
 }
+let freeLayoutCache={key:'',poses:[]};
+let concentricLayoutCache={key:'',poses:[],circles:[]};
+function concentricPoses(){
+  const options={rings:state.rows,radius:state.radius,ringGap:state.rowGap/DESIGN_SCALE,outerRadius:state.concentricOuterRadius,
+    width:cardWidthWorld(),height:cardHeightWorld(),heightStep:(state.concentricHeightStep||0)/DESIGN_SCALE,
+    stagger:state.staggerHorizontal/100,phase:THREE.MathUtils.degToRad(state.contentRotation)};
+  const key=JSON.stringify([state.count,options]);
+  if(key!==concentricLayoutCache.key)concentricLayoutCache={key,...concentricLayout(state.count,options)};
+  return concentricLayoutCache;
+}
+function freeRectPose(rect){return {position:new THREE.Vector3(rect.x/DESIGN_SCALE,rect.y/DESIGN_SCALE,0),quaternion:new THREE.Quaternion(),width:rect.width/DESIGN_SCALE,height:rect.height/DESIGN_SCALE,gapLimit:rect.gapLimit,curvatureRadius:0}}
+function planarLayoutOptions(){return {outline:state.mode==='regularGrid'?'regular':'free',direction:state.freeDirection,ratio:state.freeRatio,aspect:state.mode==='regularGrid'?state.width/state.height:undefined,canvasWidth:state.width,canvasHeight:state.height,gap:state.freeGap,edge:state.freeEdge,seed:state.freeSeed}}
+function freeGridPoses(){
+  const aspects=Array(state.count).fill(1);
+  const options=planarLayoutOptions();
+  const key=JSON.stringify([state.mode,aspects,options]);
+  if(key!==freeLayoutCache.key)freeLayoutCache={key,poses:(state.mode==='regularGrid'?regularGridLayout:freeGridLayout)(aspects,options).map(freeRectPose)};
+  return freeLayoutCache.poses;
+}
 function curvedPoseFor(index){
+  if(isConcentricMode())return concentricPoses().poses[index];
+  if(isPlanarMode())return freeGridPoses()[index];
+  if(state.mode==='room')return roomCardPose(index,state.rows,state.columns,state.columnGap/DESIGN_SCALE,state.rowGap/DESIGN_SCALE,cardWidthWorld(),cardHeightWorld(),staggerValueFor(state)/100,Number(state.roomWallStagger||0)/100,state.staggerDirection);
   if(isGridMode())return gridCardPose(index,state.rows,state.columns,state.columnGap/DESIGN_SCALE,state.rowGap/DESIGN_SCALE,state.gridStagger/100,state.gridStaggerDirection,cardWidthWorld(),cardHeightWorld());
   const axis=state.mode==='curvedHorizontal'?'vertical':'horizontal';
   const poseAxis=state.mode==='single'&&(state.fixedEdge==='top'||state.fixedEdge==='bottom')?'vertical':axis;
-  return curvedCardPose(index,state.rows,state.columns,state.columnGap/DESIGN_SCALE,state.rowGap/DESIGN_SCALE,state.curveBend,cardWidthWorld(),cardHeightWorld(),state.stagger/100,poseAxis,state.staggerDirection,state.mode==='single'?state.fixedEdge:'center');
+  return curvedCardPose(index,state.rows,state.columns,state.columnGap/DESIGN_SCALE,state.rowGap/DESIGN_SCALE,state.curveBend,cardWidthWorld(),cardHeightWorld(),staggerValueFor(state)/100,poseAxis,state.staggerDirection,state.mode==='single'?state.fixedEdge:'center');
 }
 function tiltKey(axis){return axis==='y'?'tiltY':axis==='z'?'tiltZ':'tiltX'}
 function tiltValueFor(source,axis){
@@ -724,6 +1716,13 @@ function setTiltGizmoVisible(visible){
 const orbitYAxis=new THREE.Vector3(0,1,0),orbitXAxis=new THREE.Vector3(1,0,0),orbitQuaternion=new THREE.Quaternion(),orbitYaw=new THREE.Quaternion(),orbitPitch=new THREE.Quaternion(),orbitOffset=new THREE.Vector3(0,0,1);
 function updateCameraOrbit(){const az=THREE.MathUtils.degToRad(state.rotation),el=THREE.MathUtils.degToRad(state.tilt);orbitYaw.setFromAxisAngle(orbitYAxis,az);orbitPitch.setFromAxisAngle(orbitXAxis,-el);orbitQuaternion.copy(orbitYaw).multiply(orbitPitch);orbitOffset.set(0,0,cameraDistance).applyQuaternion(orbitQuaternion);camera.position.copy(cameraTarget).add(orbitOffset);camera.quaternion.copy(orbitQuaternion)}
 function layoutFitSize(){
+  if(isConcentricMode()){
+    // Keep the saved framing stable while the radii change. Fit to canvas
+    // explicitly updates this reference to the actual outer ring.
+    const outer=Number(state.concentricFitRadius)||9;
+    const span=(outer+Math.max(cardWidthWorld(),cardHeightWorld())/2)*1.08;
+    return {halfWidth:span,halfHeight:span};
+  }
   if(isRingMode()){
     const ringRadius=ringLayoutRadius();
     const span=(ringRadius+Math.max(cardWidthWorld(),cardHeightWorld())/2)*1.1;
@@ -733,10 +1732,10 @@ function layoutFitSize(){
   for(let i=0;i<state.count;i++){
     const pose=curvedPoseFor(i);
     maxX=Math.max(maxX,Math.abs(pose.position.x)+pose.width/2);
-    maxY=Math.max(maxY,Math.abs(pose.position.y)+cardHeightWorld()/2);
-    maxZ=Math.max(maxZ,Math.abs(pose.position.z)+cardHeightWorld()/2);
+    maxY=Math.max(maxY,Math.abs(pose.position.y)+(pose.height||cardHeightWorld())/2);
+    maxZ=Math.max(maxZ,Math.abs(pose.position.z)+(isPlanarMode()?0:cardHeightWorld()/2));
   }
-  if(isGridMode()){
+  if(isGridMode()||isPlanarMode()){
     if(!isIsometricMode()){
       const q=makeWorldTiltQuaternion(tiltValueFor(state,'x'),tiltValueFor(state,'y'),tiltValueFor(state,'z'));
       const m=new THREE.Matrix4().makeRotationFromQuaternion(q),e=m.elements;
@@ -758,9 +1757,16 @@ function layoutFitSize(){
     }
     return {halfWidth:Math.max(projectedX,.1)*1.08,halfHeight:Math.max(projectedY,.1)*1.08};
   }
-  return {halfWidth:maxX*1.08,halfHeight:maxY*1.08};
+  // A perspective gallery needs extra clearance for the nearest row: its
+  // cards appear larger than the center row, especially at the ceiling and
+  // floor edges. Keep the room comfortably inside the fixed camera view.
+  const roomMargin=state.mode==='room'?1.42:1.08;
+  return {halfWidth:maxX*roomMargin,halfHeight:maxY*roomMargin};
 }
 function fitCamera(fitWall=false){
+  if(applyingAnimationKeyframes)return;
+  const layoutDepth=isConcentricMode()?concentricPoses().circles.at(-1).radius+cardHeightWorld()/2+
+    Math.abs(state.concentricHeightStep||0)/DESIGN_SCALE*(concentricPoses().circles.length-1):state.radius;
   if(isOrthographicCamera){
     const aspect=Math.max(.025,camera.aspect||1);
     // Derive the complete projection from current settings on every path:
@@ -768,16 +1774,16 @@ function fitCamera(fitWall=false){
     const fit=layoutFitSize();cameraHalfSpan=Math.max(fit.halfHeight,fit.halfWidth/aspect);
     const halfHeight=Math.max(.1,cameraHalfSpan*100/Math.max(1,state.zoom));
     camera.left=-halfHeight*aspect;camera.right=halfHeight*aspect;camera.top=halfHeight;camera.bottom=-halfHeight;
-    cameraDistance=20;
-    camera.near=.1;camera.far=Math.max(80,cameraDistance+state.radius+20);
+    cameraDistance=isConcentricMode()?Math.max(20,layoutDepth*1.5):20;
+    camera.near=.1;camera.far=Math.max(80,cameraDistance+layoutDepth+20);
     updateCameraOrbit();camera.updateProjectionMatrix();return;
   }
   const halfFov=Math.tan(THREE.MathUtils.degToRad(camera.fov/2)),aspect=Math.max(.025,camera.aspect);
   if(fitWall){const fit=layoutFitSize();cameraHalfSpan=fit.halfHeight;const fitDistance=Math.max(fit.halfHeight/halfFov,fit.halfWidth/(halfFov*aspect));cameraDistance=fitDistance*100/state.zoom}
   else {const fitDistance=cameraHalfSpan/(halfFov*Math.min(1,aspect));cameraDistance=fitDistance*100/state.zoom}
-  camera.far=Math.max(80,cameraDistance+state.radius+20);updateCameraOrbit();camera.updateProjectionMatrix();
+  camera.far=Math.max(80,cameraDistance+layoutDepth+20);updateCameraOrbit();camera.updateProjectionMatrix();
 }
-function resize(){const b=host.getBoundingClientRect();if(!b.width||!b.height)return;const width=Math.round(b.width),height=Math.round(b.height);if(width!==lastCanvasSize.width||height!==lastCanvasSize.height){lastCanvasSize={width,height};renderer.setSize(width,height,false)}camera.aspect=width/height;fitCamera();updateTransforms()}
+function resize(){const b=host.getBoundingClientRect();if(!b.width||!b.height)return;syncPreviewRendererQuality();const width=Math.round(b.width),height=Math.round(b.height);if(width!==lastCanvasSize.width||height!==lastCanvasSize.height){lastCanvasSize={width,height};renderer.setSize(width,height,false)}camera.aspect=width/height;fitCamera();updateTransforms()}
 function releaseCard(card){
   if(!card)return;
   wallGroup.remove(card.mesh,card.backMesh);
@@ -808,7 +1814,7 @@ function createDecorativeCard(index,sourceCard){
 }
 function decorativePoseFor(index){
   const axis=state.fixedEdge==='top'||state.fixedEdge==='bottom'?'vertical':'horizontal';
-  return curvedCardPose(index,state.rows,state.columns,state.columnGap/DESIGN_SCALE,state.rowGap/DESIGN_SCALE,state.curveBend*(THREE.MathUtils.clamp(Number(state.decorativeWallProgress)||0,0,100)/100),cardWidthWorld(),cardHeightWorld(),state.stagger/100,axis,state.staggerDirection,state.fixedEdge);
+  return curvedCardPose(index,state.rows,state.columns,state.columnGap/DESIGN_SCALE,state.rowGap/DESIGN_SCALE,state.curveBend*(THREE.MathUtils.clamp(Number(state.decorativeWallProgress)||0,0,100)/100),cardWidthWorld(),cardHeightWorld(),staggerValueFor(state)/100,axis,state.staggerDirection,state.fixedEdge);
 }
 function updateDecorativeTransforms(){
   const enabled=state.mode==='single'&&state.decorativeWallEnabled&&Number(state.decorativeWallOpacity)>0;
@@ -870,16 +1876,16 @@ function createCardGeometry(curvatureRadius=0,curvatureAxis='x',width=cardWidthW
   }
   positions.needsUpdate=true;geometry.computeVertexNormals();geometry.computeBoundingSphere();return geometry;
 }
-function ensureCardGeometry(card,curvatureRadius,curvatureAxis='x'){
-  const key=`${cardWidthWorld().toFixed(5)}:${cardHeightWorld().toFixed(5)}:${curvatureRadius?`${curvatureAxis}:${curvatureRadius.toFixed(5)}`:'flat'}`;
+function ensureCardGeometry(card,curvatureRadius,curvatureAxis='x',width=cardWidthWorld(),height=cardHeightWorld()){
+  const key=`${width.toFixed(5)}:${height.toFixed(5)}:${curvatureRadius?`${curvatureAxis}:${curvatureRadius.toFixed(5)}`:'flat'}`;
   if(card.geometryKey===key)return;
-  const geometry=createCardGeometry(curvatureRadius,curvatureAxis);card.mesh.geometry.dispose();card.mesh.geometry=geometry;card.backMesh.geometry=geometry;card.geometryKey=key;
+  const geometry=createCardGeometry(curvatureRadius,curvatureAxis,width,height);card.mesh.geometry.dispose();card.mesh.geometry=geometry;card.backMesh.geometry=geometry;card.geometryKey=key;
 }
 function createCard(index){
   const cornerUniform={value:state.corner/DESIGN_SCALE};
   const sizeUniform={value:new THREE.Vector2(cardWidthWorld(),cardHeightWorld())};
-  const frontMaterial=createCardMaterial(cornerUniform,THREE.FrontSide,0xffffff,sizeUniform);
-  const backMaterial=createCardMaterial(cornerUniform,THREE.BackSide,state.mode==='bloom'?1:state.backBrightness/100,sizeUniform);
+  const frontMaterial=createCardMaterial(cornerUniform,isConcentricMode()?THREE.BackSide:THREE.FrontSide,0xffffff,sizeUniform);
+  const backMaterial=createCardMaterial(cornerUniform,isConcentricMode()?THREE.FrontSide:THREE.BackSide,state.mode==='bloom'?1:state.backBrightness/100,sizeUniform);
   const geometry=createCardGeometry();
   const mesh=new THREE.Mesh(geometry,frontMaterial);
   const backMesh=new THREE.Mesh(geometry,backMaterial);
@@ -887,6 +1893,8 @@ function createCard(index){
   const opacity=THREE.MathUtils.clamp(Number(state.photoOpacity)||0,0,100)/100;
   frontMaterial.opacity=opacity;backMaterial.opacity=opacity;
   frontMaterial.depthWrite=opacity>=.999;backMaterial.depthWrite=opacity>=.999;
+  // Keep new cards hidden until their texture is ready.
+  mesh.visible=false;backMesh.visible=false;
   wallGroup.add(mesh,backMesh);
   const card={mesh,backMesh,frontMaterial,backMaterial,cornerUniform,sizeUniform,photo:null,loadId:0};
   cards[index]=card;return card;
@@ -897,23 +1905,33 @@ renderPresetPreviews();
 function photoAdjustValue(photo,key,fallback){
   const value=Number(photo?.[key]);return Number.isFinite(value)?value:fallback;
 }
+function photoScaleValue(photo,key,fallback=1){
+  const value=Number(photo?.[key]);return Number.isFinite(value)&&value>=1?value:fallback;
+}
 function applyCardTextureTransform(card){
   const texture=card?.frontMaterial.map||card?.backMaterial.map;if(!texture)return;
-  const photo=card.photo||{};const scale=THREE.MathUtils.clamp(photoAdjustValue(photo,'imageScale',1),1,3);
+  const photo=card.photo||{};
+  const legacyScale=photoScaleValue(photo,'imageScale',1);
+  const scaleX=THREE.MathUtils.clamp(photoScaleValue(photo,'imageScaleX',legacyScale),1,3);
+  const scaleY=THREE.MathUtils.clamp(photoScaleValue(photo,'imageScaleY',legacyScale),1,3);
   const offsetX=THREE.MathUtils.clamp(photoAdjustValue(photo,'imageOffsetX',0),-300,300)/100;
   const offsetY=THREE.MathUtils.clamp(photoAdjustValue(photo,'imageOffsetY',0),-300,300)/100;
   const base=card.baseTextureRepeat||{x:1,y:1};
-  const repeatX=Math.min(1,base.x/scale),repeatY=Math.min(1,base.y/scale);
+  const repeatX=Math.min(1,base.x/scaleX),repeatY=Math.min(1,base.y/scaleY);
   texture.center.set(.5,.5);
   texture.rotation=imageDirectionAngle(state.imageDirection);
   texture.repeat.set(repeatX,repeatY);
-  texture.offset.set((1-repeatX)/2+offsetX*(1-repeatX)/2,(1-repeatY)/2+offsetY*(1-repeatY)/2);
+  // Center is already .5: adding another half-crop shifts the image away from center.
+  texture.offset.set(offsetX*(1-repeatX)/2,offsetY*(1-repeatY)/2);
   texture.needsUpdate=true;
 }
 function syncCardTextureAspect(card){
   const texture=card?.frontMaterial.map;if(!texture?.image)return;
-  const imageAspect=texture.image.width/texture.image.height,cardAspect=cardWidthWorld()/cardHeightWorld();
+  const sideways=isPlanarMode()&&(state.imageDirection==='left'||state.imageDirection==='right');
+  const rawAspect=texture.image.width/texture.image.height;
+  const imageAspect=sideways?1/rawAspect:rawAspect,cardAspect=(card.layoutWidth||cardWidthWorld())/(card.layoutHeight||cardHeightWorld());
   const baseTextureRepeat={x:1,y:1};if(imageAspect>cardAspect)baseTextureRepeat.x=cardAspect/imageAspect;else baseTextureRepeat.y=imageAspect/cardAspect;
+  if(sideways){const x=baseTextureRepeat.x;baseTextureRepeat.x=baseTextureRepeat.y;baseTextureRepeat.y=x}
   card.baseTextureRepeat=baseTextureRepeat;applyCardTextureTransform(card);
 }
 function setCardPhoto(index,sourceOverride=null){
@@ -926,12 +1944,12 @@ function setCardPhoto(index,sourceOverride=null){
   // and browsers without ImageBitmap support.
   const textureQuality=interactivePreviewQuality||previewQuality;
   const bitmapKey=sourceOverride?'original':textureQuality;
+  // An explicit source override is used by export and must bypass every
+  // preview bitmap, including the capped "original" preview for large walls.
   const previewCanvas=!sourceOverride&&photo.previewCanvases?.[bitmapKey]
-    ?photo.previewCanvases[bitmapKey]
-    :(sourceOverride===photo.fullSrc?photo.previewCanvases?.original:null);
+    ?photo.previewCanvases[bitmapKey]:null;
   const bitmap=!previewCanvas&&!sourceOverride&&photo.previewBitmaps?.[bitmapKey]
-    ?photo.previewBitmaps[bitmapKey]
-    :(sourceOverride===photo.fullSrc?photo.previewBitmaps?.original:null);
+    ?photo.previewBitmaps[bitmapKey]:null;
   const previewUrl=!sourceOverride&&bitmapKey==='standard'?photo.previewUrls?.standard:null;
   const source=sourceOverride||previewUrl||photo.src;
   const sourceKey=previewCanvas?`canvas:${bitmapKey}`:bitmap?`bitmap:${bitmapKey}`:source;
@@ -939,14 +1957,20 @@ function setCardPhoto(index,sourceOverride=null){
   card.photo=photo;card.photoSource=sourceKey;const loadId=++card.loadId;
   return new Promise((resolve,reject)=>{
     const applyTexture=texture=>{
-      texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=renderer.capabilities.getMaxAnisotropy();
+      texture.colorSpace=THREE.SRGBColorSpace;
+      // High anisotropy is expensive when dozens of cards are visible. The
+      // standard preview is already downsampled, so a small cap is enough;
+      // original quality gets a slightly higher cap for close views.
+      const anisotropyCap=(interactivePreviewQuality||previewQuality)==='original'?4:2;
+      texture.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),anisotropyCap);
       if(cards[index]!==card||card.loadId!==loadId){texture.dispose();resolve();return}
-      const imageAspect=texture.image.width/texture.image.height,cardAspect=cardWidthWorld()/cardHeightWorld();
+      const imageAspect=texture.image.width/texture.image.height,cardAspect=(card.layoutWidth||cardWidthWorld())/(card.layoutHeight||cardHeightWorld());
       const baseTextureRepeat={x:1,y:1};if(imageAspect>cardAspect)baseTextureRepeat.x=cardAspect/imageAspect;else baseTextureRepeat.y=imageAspect/cardAspect;
+      photo.aspect=imageAspect;
       card.baseTextureRepeat=baseTextureRepeat;
       texture.repeat.set(baseTextureRepeat.x,baseTextureRepeat.y);texture.offset.set((1-texture.repeat.x)/2,(1-texture.repeat.y)/2);
-      const old=card.frontMaterial.map||card.backMaterial.map;card.frontMaterial.map=texture;card.backMaterial.map=texture;card.frontMaterial.needsUpdate=true;card.backMaterial.needsUpdate=true;if(old)old.dispose();render();
-      applyCardTextureTransform(card);updateDecorativeTransforms();resolve();
+      const old=card.frontMaterial.map||card.backMaterial.map;card.frontMaterial.map=texture;card.backMaterial.map=texture;card.frontMaterial.needsUpdate=true;card.backMaterial.needsUpdate=true;card.mesh.visible=true;card.backMesh.visible=true;if(old)old.dispose();if(!textureBatchDepth)render();
+      applyCardTextureTransform(card);updateDecorativeTransforms();if(isPlanarMode())syncCardTextureAspect(card);resolve();
     };
     if(previewCanvas){
       const texture=new THREE.CanvasTexture(previewCanvas);texture.needsUpdate=true;applyTexture(texture);return;
@@ -958,24 +1982,23 @@ function setCardPhoto(index,sourceOverride=null){
   });
 }
 function updateTransforms(fitWall=true,preserveCamera=false){
-  if(isRingMode())syncRingControls();else if(isGridMode())syncGridControls();else syncCurvedControls();
+  // Async project hydration must not create cards from the temporary 12-slot state.
+  if(isLoadingProject)return;
+  if(applyingAnimationKeyframes)return;
+  enforcePlanarView();
+  if(isConcentricMode())syncConcentricControls();else if(isPlanarMode())syncFreeGridControls();else if(isRingMode())syncRingControls();else if(isGridMode())syncGridControls();else syncCurvedControls();
   // Layout controls can change the wall's bounds (especially the ring gap),
   // so recalculate the camera fit. Camera-only gestures keep their current
   // distance and only refresh the orbit orientation.
   if((fitWall||isOrthographicCamera)&&!preserveCamera)fitCamera(true);else updateCameraOrbit();
   const count=state.count;
+  const textureJobs=[];
   const ringRadius=isRingMode()?ringLayoutRadius():state.radius;
-  const tiltX=THREE.MathUtils.degToRad(tiltValueFor(state,'x'));
-  const tiltY=THREE.MathUtils.degToRad(tiltValueFor(state,'y'));
-  const tiltZ=THREE.MathUtils.degToRad(tiltValueFor(state,'z'));
   // Apply each tilt around the fixed scene axes. The selected axis only
   // chooses which value the slider edits; it must not turn the other axes off.
-  wallGroup.quaternion.identity();
-  wallGroup.rotateOnWorldAxis(WORLD_X_AXIS,tiltX);
-  wallGroup.rotateOnWorldAxis(WORLD_Y_AXIS,tiltY);
-  wallGroup.rotateOnWorldAxis(WORLD_Z_AXIS,tiltZ);
+  applyWallGroupRotation();
   for(let i=0;i<count;i++){
-    if(cards[i]?.photo!==state.photos[i])setCardPhoto(i).catch(()=>{});
+    if(cards[i]?.photo!==state.photos[i])textureJobs.push(setCardPhoto(i).catch(()=>{}));
     const card=cards[i];if(!card)continue;
     const mesh=card.mesh,pose=state.mode==='ring'
       ? ringCardPose(i,count,ringRadius,state.spacing/DESIGN_SCALE,THREE.MathUtils.degToRad(state.contentRotation),cardWidthWorld())
@@ -990,19 +2013,52 @@ function updateTransforms(fitWall=true,preserveCamera=false){
     const curvatureRadius=state.mode==='ring'
       ?ringRadius/Math.max(cardScale,.001)
       :pose.curvatureRadius||0;
-    ensureCardGeometry(card,curvatureRadius,pose.curvatureAxis||'x');
-    mesh.scale.set(cardScale,1,cardScale);mesh.userData.slot=i;
-    card.sizeUniform.value.set(cardWidthWorld(),cardHeightWorld());
+    card.layoutWidth=isPlanarMode()?pose.width:cardWidthWorld();card.layoutHeight=isPlanarMode()?pose.height:cardHeightWorld();
+    if(state.mode==='room'){
+      const key='room:'+JSON.stringify(pose.surface);
+      if(card.geometryKey!==key){
+        const geometry=createRoomCardGeometry(pose);card.mesh.geometry.dispose();
+        card.mesh.geometry=geometry;card.backMesh.geometry=geometry;card.geometryKey=key;
+      }
+    }else ensureCardGeometry(card,curvatureRadius,pose.curvatureAxis||'x',card.layoutWidth,card.layoutHeight);
+    mesh.scale.set(isPlanarMode()?1:cardScale,1,isPlanarMode()?1:cardScale);mesh.userData.slot=i;
+    card.entranceBasePosition??=new THREE.Vector3();card.entranceBaseScale??=new THREE.Vector3();card.entranceBasePosition.copy(mesh.position);card.entranceBaseScale.copy(mesh.scale);
+    card.sizeUniform.value.set(card.layoutWidth,card.layoutHeight);
     syncCardTextureAspect(card);
     mesh.userData.slot=i;
     card.backMesh.position.copy(mesh.position);card.backMesh.quaternion.copy(mesh.quaternion);card.backMesh.scale.copy(mesh.scale);card.backMesh.userData.slot=i;
-    card.cornerUniform.value=state.corner/DESIGN_SCALE;
+    card.cornerUniform.value=Math.min(state.corner/DESIGN_SCALE,card.layoutWidth/2,card.layoutHeight/2);
   }
+  if(state.mode==='bloom'&&bloomAnimation.entranceEnabled)updateBloomAnimationPose();
+  else if(bloomAnimation.entranceEnabled)applyEntranceAnimationPose();
   wallGroup.updateMatrixWorld(true);
   decorativeGroup.quaternion.copy(wallGroup.quaternion);
   updateDecorativeTransforms();
   decorativeGroup.updateMatrixWorld(true);
   render();
+  return Promise.allSettled(textureJobs);
+}
+function syncConcentricControls(){
+  state.rows=THREE.MathUtils.clamp(Math.round(Number(state.rows)||3),1,Math.min(8,Math.floor(state.count/3)));
+  state.radius=THREE.MathUtils.clamp(Number(state.radius)||4.2,.5,15);
+  state.rowGap=THREE.MathUtils.clamp(Number(state.rowGap)||20,20,600);
+  if(state.rows>1){
+    state.concentricOuterRadius=THREE.MathUtils.clamp(Number(state.concentricOuterRadius)||9,
+      state.radius+(state.rows-1)*.2,state.radius+(state.rows-1)*6);
+    state.rowGap=(state.concentricOuterRadius-state.radius)*DESIGN_SCALE/(state.rows-1);
+  }
+  state.staggerHorizontal=THREE.MathUtils.clamp(Number(state.staggerHorizontal)||0,0,100);
+  state.concentricHeightStep=THREE.MathUtils.clamp(Number(state.concentricHeightStep)||0,-600,600);
+  state.stagger=state.staggerHorizontal;
+  $('#concentricRingsInput').max=Math.min(8,Math.floor(state.count/3));
+  const controls=[['Rings',state.rows,''],['Radius',formatUiNumber(state.radius*DESIGN_SCALE),' px'],
+    ['OuterRadius',formatUiNumber(state.concentricOuterRadius*DESIGN_SCALE),' px'],
+    ['RingGap',formatUiNumber(state.rowGap,0),' px'],['HeightStep',formatUiNumber(state.concentricHeightStep),' px'],['Stagger',formatUiNumber(state.staggerHorizontal),'%']];
+  controls.forEach(([name,value,unit])=>{$('#concentric'+name+'Input').value=value;$('#concentric'+name+'Output').textContent=value+unit});
+  $('#concentricOuterRadiusControl').classList.toggle('mode-hidden',state.rows===1);
+  $('#concentricOuterRadiusInput').min=Math.round(state.radius*DESIGN_SCALE+(state.rows-1)*20);
+  $('#concentricOuterRadiusInput').max=Math.round(state.radius*DESIGN_SCALE+(state.rows-1)*600);
+  syncCardSizeControls();
 }
 function syncRingControls(){
   state.spacing=THREE.MathUtils.clamp(state.spacing,0,300);
@@ -1022,13 +2078,16 @@ function syncRingControls(){
   const radiusInput=$('#radiusInput');
   radiusInput.min=Math.ceil(radiusUiMin*DESIGN_SCALE*10)/10;
   radiusInput.max=Math.ceil(radiusUiMax*DESIGN_SCALE*10)/10;
-  radiusInput.value=(state.radius*DESIGN_SCALE).toFixed(1);
-  $('#radiusOutput').textContent=`${(state.radius*DESIGN_SCALE).toFixed(1)} px`;
-  $('#spacingInput').value=state.spacing;$('#spacingOutput').textContent=`${Number(state.spacing.toFixed(1))} px`;
+  radiusInput.value=formatUiNumber(state.radius*DESIGN_SCALE,1);
+  $('#radiusOutput').textContent=`${formatUiNumber(state.radius*DESIGN_SCALE,0)} px`;
+  $('#spacingInput').value=state.spacing;$('#spacingOutput').textContent=`${formatUiNumber(state.spacing,0)} px`;
   syncCardSizeControls();
 }
 function syncCurvedControls(){
-  const count=Math.max(3,Math.min(72,Math.round(Number(state.count)||12)));
+  const count=Math.max(3,Math.min(photoCountLimit(),Math.round(Number(state.count)||12)));
+  if(isRoomMode() && (Number(state.columns)%4!==0 || Number(state.columns)>ROOM_MAX_PHOTO_COUNT)){
+    normalizeCurvedGrid(state.rows,state.columns,'count');
+  }
   const maxRows=Math.min(8,Math.max(1,Math.ceil(count/3)));
   state.rows=THREE.MathUtils.clamp(Math.round(state.rows),1,maxRows);
   state.columns=THREE.MathUtils.clamp(Math.round(state.columns),3,Math.max(3,count));
@@ -1036,9 +2095,12 @@ function syncCurvedControls(){
   state.rowGap=THREE.MathUtils.clamp(state.rowGap,0,160);
   state.columnGap=THREE.MathUtils.clamp(state.columnGap,0,160);
   state.spacingMode=state.spacingMode==='column'||state.spacingMode==='row'?state.spacingMode:'all';
-  const staggerValue=Number(state.stagger);
-  state.stagger=THREE.MathUtils.clamp(Math.round(Number.isFinite(staggerValue)?staggerValue:50),0,100);
-  if(state.stagger>0&&state.stagger<=5)state.stagger=0;
+  for(const key of ['staggerHorizontal','staggerVertical']){
+    const value=Number(state[key]);
+    state[key]=THREE.MathUtils.clamp(Math.round(Number.isFinite(value)?value:50),0,100);
+    if(state[key]>0&&state[key]<=5)state[key]=0;
+  }
+  state.stagger=staggerValueFor(state);
   state.staggerDirection=state.staggerDirection==='vertical'?'vertical':'horizontal';
   state.curveBend=THREE.MathUtils.clamp(state.curveBend,-360,360);
   state.decorativeWallEnabled=state.decorativeWallEnabled!==false;
@@ -1051,7 +2113,7 @@ function syncCurvedControls(){
   $('#staggerInput').value=state.stagger;$('#staggerOutput').textContent=`${state.stagger}%`;
   const spacingValue=state.spacingMode==='row'?state.rowGap:state.columnGap;
   const spacingLabel=currentLanguage==='en'?(state.spacingMode==='row'?'Rows':state.spacingMode==='column'?'Columns':'Gap'):(state.spacingMode==='row'?'行间距':state.spacingMode==='column'?'列间距':'间距');
-  $('#curvedSpacingInput').value=spacingValue;$('#curvedSpacingLabel').firstChild.textContent=spacingLabel+' ';$('#curvedSpacingOutput').textContent=`${spacingValue} px`;
+  $('#curvedSpacingInput').value=spacingValue;$('#curvedSpacingLabel').firstChild.textContent=spacingLabel+' ';$('#curvedSpacingOutput').textContent=`${formatUiNumber(spacingValue,0)} px`;
   document.querySelectorAll('[data-curved-spacing-mode]').forEach(button=>{const active=button.dataset.curvedSpacingMode===state.spacingMode;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
   $('#curveBendInput').value=state.curveBend;$('#curveBendOutput').textContent=`${state.curveBend}°`;
   document.querySelectorAll('[data-curved-stagger-direction]').forEach(button=>{const active=button.dataset.curvedStaggerDirection===state.staggerDirection;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
@@ -1059,6 +2121,22 @@ function syncCurvedControls(){
   if(opacityInput){opacityInput.value=state.decorativeWallOpacity;$('#decorativeWallOpacityOutput').textContent=`${state.decorativeWallOpacity}%`}
   if(progressInput){progressInput.value=state.decorativeWallProgress;$('#decorativeWallProgressOutput').textContent=`${state.decorativeWallProgress}%`}
   document.querySelectorAll('[data-decorative-wall]').forEach(button=>{const active=(button.dataset.decorativeWall==='on')===state.decorativeWallEnabled;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
+}
+function syncFreeGridControls(){
+  state.freeDirection=state.mode==='regularGrid'?'center':['center','horizontal','vertical'].includes(state.freeDirection)?state.freeDirection:'center';
+  state.freeRatio='mixed';state.freeLayoutVersion=3;
+  const frames=freeGridPoses();
+  const gapLimit=frames[0]?.gapLimit??0;
+  state.freeGap=THREE.MathUtils.clamp(Number(state.freeGap)||0,0,gapLimit);
+  $('#freeGapInput').max=gapLimit;
+  state.freeEdge=THREE.MathUtils.clamp(Number(state.freeEdge)||0,0,100);
+  state.freeSeed=Number(state.freeSeed)>>>0;
+  for(const [key,unit] of [['Gap',' px'],['Edge','%']]){$('#free'+key+'Input').value=state['free'+key];$('#free'+key+'Output').textContent=formatUiNumber(state['free'+key])+unit}
+  for(const [attribute,value] of [['freeDirection',state.freeDirection]]){
+    const selector=attribute.replace(/[A-Z]/g,letter=>'-'+letter.toLowerCase());
+    document.querySelectorAll('[data-'+selector+']').forEach(button=>{const active=button.dataset[attribute]===value;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
+  }
+  $('#cardHeightInput').closest('.range-control').classList.toggle('mode-hidden',isPlanarMode());
 }
 function syncGridControls(){
   const count=Math.max(3,Math.min(72,Math.round(Number(state.count)||24)));
@@ -1083,16 +2161,21 @@ function syncGridControls(){
   $('#gridColumnCountInput').value=state.columns;$('#gridColumnCountOutput').textContent=state.columns;
   const spacingValue=state.spacingMode==='row'?state.rowGap:state.columnGap;
   const spacingLabel=currentLanguage==='en'?(state.spacingMode==='row'?'Rows':state.spacingMode==='column'?'Columns':'Gap'):(state.spacingMode==='row'?'行间距':state.spacingMode==='column'?'列间距':'间距');
-  $('#gridGapInput').value=spacingValue;$('#gridSpacingLabel').firstChild.textContent=spacingLabel+' ';$('#gridGapOutput').textContent=`${spacingValue} px`;
+  $('#gridGapInput').value=spacingValue;$('#gridSpacingLabel').firstChild.textContent=spacingLabel+' ';$('#gridGapOutput').textContent=`${formatUiNumber(spacingValue,0)} px`;
   document.querySelectorAll('[data-grid-spacing-mode]').forEach(button=>{const active=button.dataset.gridSpacingMode===state.spacingMode;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
   $('#gridStaggerInput').value=state.gridStagger;$('#gridStaggerOutput').textContent=`${state.gridStagger}%`;
   document.querySelectorAll('[data-grid-direction]').forEach(button=>{const active=button.dataset.gridDirection===state.gridStaggerDirection;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
 }
 function syncPhotoSlots(){
+  textureBatchDepth++;
   const jobs=[];
-  for(let i=0;i<state.count;i++)if(cards[i]?.photo!==state.photos[i])jobs.push(setCardPhoto(i).catch(()=>{}));
-  updateTransforms(false);
-  return Promise.allSettled(jobs);
+  // Project hydration intentionally keeps transforms paused until all saved
+  // photo records are available, so load those cards directly in that phase.
+  // During normal editing updateTransforms tracks the texture promises itself.
+  if(isLoadingProject){
+    for(let i=0;i<state.count;i++)if(cards[i]?.photo!==state.photos[i])jobs.push(setCardPhoto(i).catch(()=>{}));
+  }else jobs.push(updateTransforms(false));
+  return Promise.allSettled(jobs).finally(()=>{textureBatchDepth=Math.max(0,textureBatchDepth-1);render()});
 }
 // Preview quality only changes the image source. Keep the current wall pose
 // and camera framing intact instead of routing through updateTransforms(),
@@ -1100,9 +2183,9 @@ function syncPhotoSlots(){
 function refreshPhotoTextures(){
   cards.forEach(card=>{if(card){card.photo=null;card.photoSource=null}});
   const jobs=[];
+  textureBatchDepth++;
   for(let i=0;i<state.count;i++)jobs.push(setCardPhoto(i).catch(()=>{}));
-  render();
-  return Promise.all(jobs);
+  return Promise.all(jobs).finally(()=>{textureBatchDepth=Math.max(0,textureBatchDepth-1);render()});
 }
 function updateDimensionUI(){
   const ratioWidth=clampRatioValue(state.ratioWidth,ratioPartsForDimensions(state.width,state.height).width);
@@ -1146,45 +2229,92 @@ function updateSlots(){
   });
   syncPhotoAdjustControls();
 }
-function syncPhotoAdjustControls(){
-  const photo=state.photos[state.selected]||{};
-  $('#selectedPhotoLabel').textContent=`槽位 ${state.selected+1}${photo.name?` · ${photo.name}`:''}`;
-  const imageOffsetBaseline=state.mode==='isometric'&&photo.sample?58:0;
-  const scale=Math.round(photoAdjustValue(photo,'imageScale',1)*100),offsetX=Math.round(photoAdjustValue(photo,'imageOffsetX',0)),offsetY=Math.round(photoAdjustValue(photo,'imageOffsetY',0)-imageOffsetBaseline);
-  $('#photoScaleInput').value=scale;$('#photoScaleOutput').textContent=`${scale}%`;
-  $('#photoOffsetXInput').value=offsetX;$('#photoOffsetXOutput').textContent=`${offsetX}%`;
-  $('#photoOffsetYInput').value=offsetY;$('#photoOffsetYOutput').textContent=`${offsetY}%`;
-  positionPhotoAdjustPanel();
+function scrollSelectedSlotIntoView(){
+  const row=slotsList.children[state.selected];
+  if(!row)return;
+  requestAnimationFrame(()=>{if(row.isConnected)row.scrollIntoView({behavior:'smooth',block:'nearest',inline:'nearest'})});
 }
-function positionPhotoAdjustPanel(){
-  const panel=$('#photoAdjustPanel');if(!panel)return;
-  panel.classList.toggle('open',photoAdjustOpen);if(!photoAdjustOpen)return;
-  const row=slotsList.children[state.selected];if(!row)return;
-  const wrapRect=slotsWrap.getBoundingClientRect(),rowRect=row.getBoundingClientRect();
-  // Keep the popup above the selected row. Negative values intentionally let
-  // it overlap the upload area when the selected row is near the list top.
-  const top=rowRect.top-wrapRect.top-panel.offsetHeight-8;
-  panel.style.top=`${top}px`;
+function photoEditBaseline(photo){return state.mode==='isometric'&&photo?.sample?58:0}
+function photoEditValues(photo){
+  const legacyScale=photoScaleValue(photo,'imageScale',1);
+  return {scaleX:THREE.MathUtils.clamp(photoScaleValue(photo,'imageScaleX',legacyScale),1,3),scaleY:THREE.MathUtils.clamp(photoScaleValue(photo,'imageScaleY',legacyScale),1,3),offsetX:THREE.MathUtils.clamp(photoAdjustValue(photo,'imageOffsetX',0),-300,300),offsetY:THREE.MathUtils.clamp(photoAdjustValue(photo,'imageOffsetY',0)-photoEditBaseline(photo),-300,300)};
+}
+function photoEditInitialValues(photo){return {imageScale:photo?.imageScale,imageScaleX:photo?.imageScaleX,imageScaleY:photo?.imageScaleY,imageOffsetX:photo?.imageOffsetX,imageOffsetY:photo?.imageOffsetY}}
+function writePhotoEditDraft(){
+  const session=photoEditSession,photo=session&&state.photos[session.index];if(!session||!photo)return;
+  const draft=session.draft,baseline=photoEditBaseline(photo);
+  photo.imageScaleX=THREE.MathUtils.clamp(Number(draft.scaleX)||1,1,3);photo.imageScaleY=THREE.MathUtils.clamp(Number(draft.scaleY)||1,1,3);photo.imageOffsetX=THREE.MathUtils.clamp(Number(draft.offsetX)||0,-300,300);photo.imageOffsetY=THREE.MathUtils.clamp(Number(draft.offsetY)||0,-300,300)+baseline;
+  applyCardTextureTransform(cards[session.index]);render();syncPhotoEditControls();
+}
+function photoEditImageTransform(image){
+  if(!image||!photoEditSession||!photoEditFrame)return;
+  const draft=photoEditSession.draft,width=Math.max(1,photoEditFrame.clientWidth),height=Math.max(1,photoEditFrame.clientHeight),tx=-(Number(draft.offsetX)||0)/100*(Number(draft.scaleX)-1)*width/2,ty=-(Number(draft.offsetY)||0)/100*(Number(draft.scaleY)-1)*height/2;
+  image.style.transform=`translate3d(${tx}px,${ty}px,0) scale(${draft.scaleX},${draft.scaleY})`;
+}
+function renderPhotoEditVisual(){photoEditImageTransform(photoEditImage);photoEditImageTransform(photoEditOverflowImage)}
+function syncPhotoEditGeometry(){
+  if(!photoEditSession||!photoEditViewport||!photoEditFrame||!photoEditImageFrame)return;
+  const ratio=Math.max(.05,Number(state.cardWidth)||188)/Math.max(.05,Number(state.cardHeight)||240),rect=photoEditViewport.getBoundingClientRect(),maxWidth=Math.max(180,rect.width*.7),maxHeight=Math.max(140,rect.height*.7);
+  let width=Math.min(maxWidth,maxHeight*ratio),height=width/ratio;if(height>maxHeight){height=maxHeight;width=height*ratio}
+  const left=(rect.width-width)/2,top=(rect.height-height)/2;
+  [photoEditFrame,photoEditCrop,photoEditOverflow].forEach(element=>{element.style.width=`${width}px`;element.style.height=`${height}px`;element.style.left=`${left}px`;element.style.top=`${top}px`});
+  const draft=photoEditSession.draft,sx=THREE.MathUtils.clamp(Number(draft.scaleX)||1,1,3),sy=THREE.MathUtils.clamp(Number(draft.scaleY)||1,1,3),tx=-(Number(draft.offsetX)||0)/100*(sx-1)*width/2,ty=-(Number(draft.offsetY)||0)/100*(sy-1)*height/2;
+  photoEditImageFrame.style.width=`${width*sx}px`;photoEditImageFrame.style.height=`${height*sy}px`;photoEditImageFrame.style.left=`${left+tx-(width*sx-width)/2}px`;photoEditImageFrame.style.top=`${top+ty-(height*sy-height)/2}px`;
+  renderPhotoEditVisual();
+}
+function syncPhotoEditControls(){
+  const session=photoEditSession;if(!session)return;
+  const draft=session.draft,photo=state.photos[session.index]||{};
+  $('#photoEditLabel').textContent=`${currentLanguage==='en'?'Slot':'槽位'} ${session.index+1}${photo.name?` · ${photo.name}`:''}`;$('#photoEditDimensions').textContent=`${Math.round(state.cardWidth)} × ${Math.round(state.cardHeight)} px`;
+  $('#photoEditScaleXInput').value=Math.round(draft.scaleX*100);$('#photoEditScaleXOutput').textContent=`${Math.round(draft.scaleX*100)}%`;$('#photoEditScaleYInput').value=Math.round(draft.scaleY*100);$('#photoEditScaleYOutput').textContent=`${Math.round(draft.scaleY*100)}%`;
+  $('#photoEditOffsetXInput').value=Math.round(draft.offsetX);$('#photoEditOffsetXOutput').textContent=`${Math.round(draft.offsetX)}%`;$('#photoEditOffsetYInput').value=Math.round(draft.offsetY);$('#photoEditOffsetYOutput').textContent=`${Math.round(draft.offsetY)}%`;syncPhotoEditGeometry();
+}
+function openPhotoEdit(index=state.selected){
+  const photo=state.photos[index];if(!photo?.src){notify(uiText('请先为该槽位添加图片','Add an image to this slot first'));return}
+  if(photoEditSession){if(photoEditSession.index===index)cancelPhotoEdit();else closePhotoEdit(true)}state.selected=index;updateSlots();photoEditSession={index,initial:photoEditInitialValues(photo),draft:photoEditValues(photo)};
+  photoEditImage.src=photo.src;photoEditOverflowImage.src=photo.src;photoEditModal.classList.remove('mode-hidden');photoEditModal.setAttribute('aria-hidden','false');document.body.classList.add('photo-editing');syncPhotoEditControls();requestAnimationFrame(()=>{syncPhotoEditGeometry();photoEditViewport.focus()});
+}
+function restorePhotoEditInitial(){const session=photoEditSession,photo=session&&state.photos[session.index];if(!session||!photo)return;Object.assign(photo,session.initial);applyCardTextureTransform(cards[session.index]);render()}
+function closePhotoEdit(commit=false){
+  if(!photoEditSession)return;
+  if(commit){writePhotoEditDraft();commitHistoryCheckpoint();saveCurrentProject()}else restorePhotoEditInitial();
+  photoEditSession=null;photoEditDrag=null;photoEditModal.classList.add('mode-hidden');photoEditModal.setAttribute('aria-hidden','true');document.body.classList.remove('photo-editing');photoEditImage.removeAttribute('src');photoEditOverflowImage.removeAttribute('src');updateSlots();
+}
+function cancelPhotoEdit(){closePhotoEdit(false)}
+function updatePhotoEditDraft(key,value){if(!photoEditSession)return;photoEditSession.draft[key]=key==='scaleX'||key==='scaleY'?THREE.MathUtils.clamp(Number(value)||1,1,3):THREE.MathUtils.clamp(Number(value)||0,-300,300);writePhotoEditDraft()}
+function syncPhotoAdjustControls(){
+  syncPhotoEditControls();
 }
 slotsList.addEventListener('click',event=>{
   const row=event.target.closest('.slot-row');if(!row)return;const index=Number(row.dataset.slot);
   if(event.target.closest('[data-pick]')){pickerSlot=index;$('#fileInput').click();return}
-  if(event.target.closest('[data-adjust]')){photoAdjustOpen=state.selected!==index||!photoAdjustOpen;state.selected=index;updateSlots();return}
-  if(event.target.closest('[data-select]')){state.selected=index;updateSlots()}
+  if(event.target.closest('[data-adjust]')){openPhotoEdit(index);return}
+  if(event.target.closest('[data-select]')){if(photoEditSession&&photoEditSession.index!==index){openPhotoEdit(index);return}state.selected=index;updateSlots()}
 });
-function closePhotoAdjustOnScroll(){if(!photoAdjustOpen)return;photoAdjustOpen=false;positionPhotoAdjustPanel()}
-slotsList.addEventListener('scroll',closePhotoAdjustOnScroll);
-inspector.addEventListener('scroll',closePhotoAdjustOnScroll);
-document.addEventListener('scroll',closePhotoAdjustOnScroll,true);
-document.addEventListener('wheel',closePhotoAdjustOnScroll,{capture:true,passive:true});
 slotsList.addEventListener('dragstart',event=>{const row=event.target.closest('.slot-row');if(!row)return;dragFrom=Number(row.dataset.slot);row.classList.add('dragging');event.dataTransfer.effectAllowed='move'});
 slotsList.addEventListener('dragend',event=>event.target.closest('.slot-row')?.classList.remove('dragging'));
 slotsList.addEventListener('dragover',event=>{const row=event.target.closest('.slot-row');if(!row)return;event.preventDefault();row.classList.add('drag-over')});
 slotsList.addEventListener('dragleave',event=>event.target.closest('.slot-row')?.classList.remove('drag-over'));
 slotsList.addEventListener('drop',event=>{const row=event.target.closest('.slot-row');if(!row)return;event.preventDefault();row.classList.remove('drag-over');const to=Number(row.dataset.slot);if(dragFrom!==null&&dragFrom!==to){[state.photos[dragFrom],state.photos[to]]=[state.photos[to],state.photos[dragFrom]];[cards[dragFrom],cards[to]]=[cards[to],cards[dragFrom]];state.selected=to;dragFrom=null;updateSlots();updateTransforms();scheduleProjectSave()}});
 function normalizeCurvedGrid(rows=state.rows,columns=state.columns,source='rows'){
-  const count=Math.max(3,Math.min(72,Math.round(Number(state.count)||12)));
+  const count=Math.max(3,Math.min(photoCountLimit(),Math.round(Number(state.count)||12)));
   const maxRows=Math.min(8,Math.max(1,Math.ceil(count/3)));
+  if(isRoomMode()){
+    const maxColumns=Math.max(4,Math.floor(Math.max(4,count)/4)*4);
+    if(source==='count'){
+      state.columns=THREE.MathUtils.clamp(Math.floor(Number(columns)||12),4,maxColumns);
+      state.columns=Math.max(4,Math.floor(state.columns/4)*4);
+      state.rows=THREE.MathUtils.clamp(Math.ceil(count/state.columns),1,8);
+    }else if(source==='columns'){
+      state.columns=THREE.MathUtils.clamp(Math.round(Number(columns)||12),4,maxColumns);
+      state.columns=Math.max(4,Math.round(state.columns/4)*4);
+      state.rows=THREE.MathUtils.clamp(Math.ceil(count/state.columns),1,8);
+    }else{
+      state.rows=THREE.MathUtils.clamp(Math.round(Number(rows)||5),1,8);
+      state.columns=Math.max(4,Math.ceil(count/state.rows/4)*4);
+    }
+    return;
+  }
   if(source==='columns'){
     state.columns=THREE.MathUtils.clamp(Math.round(columns),3,Math.max(3,count));
     state.rows=THREE.MathUtils.clamp(Math.ceil(count/state.columns),1,maxRows);
@@ -1194,7 +2324,7 @@ function normalizeCurvedGrid(rows=state.rows,columns=state.columns,source='rows'
     state.columns=Math.max(3,Math.ceil(count/state.rows));
   }
 }
-function setCount(value){const previous=state.count,count=Math.max(3,Math.min(72,Math.round(value)));if(count<previous){state.photos.slice(count).forEach(p=>{if(p?.objectUrl)URL.revokeObjectURL(p.objectUrl)});cards.slice(count).forEach(releaseCard);state.photos.length=count;cards.length=count}else{state.photos.length=count;cards.length=count;fillSampleSlots(previous,count)}state.count=count;if(isRingMode())state.ringCount=count;state.selected=Math.min(state.selected,count-1);if(isCurvedMode()||isGridMode())normalizeCurvedGrid(state.rows,state.columns,'rows');updateSlots();if(isCurvedMode())syncCurvedControls();if(isGridMode())syncGridControls();updateTransforms();scheduleProjectSave();if(count>previous){fitCamera(true);updateTransforms();requestAnimationFrame(()=>slotsList.lastElementChild?.scrollIntoView({block:'nearest'}))}}
+function setCount(value){const previous=state.count,count=Math.max(3,Math.min(photoCountLimit(),Math.round(value)));if(count<previous){state.photos.slice(count).forEach(p=>{if(p?.objectUrl)URL.revokeObjectURL(p.objectUrl)});cards.slice(count).forEach(releaseCard);state.photos.length=count;cards.length=count}else{state.photos.length=count;cards.length=count;fillSampleSlots(previous,count)}state.count=count;syncPreviewRendererQuality();if(isRingMode())state.ringCount=count;state.selected=Math.min(state.selected,count-1);if(isCurvedMode()||isGridMode())normalizeCurvedGrid(state.rows,state.columns,isRoomMode()?'count':'rows');updateSlots();if(isCurvedMode())syncCurvedControls();if(isGridMode())syncGridControls();updateTransforms();scheduleProjectSave();if(count>previous){fitCamera(true);updateTransforms();requestAnimationFrame(()=>slotsList.lastElementChild?.scrollIntoView({block:'nearest'}))}}
 function setCurvedGrid(rows=state.rows,columns=state.columns,source='rows'){
   normalizeCurvedGrid(rows,columns,source);
   syncCurvedControls();
@@ -1212,9 +2342,25 @@ function saveModeSettings(mode=state.mode){
   settings.cameraTarget=cameraTarget.toArray();
   if(isRingMode(mode))settings.ringCount=state.count;
 }
+function enforcePlanarView(){
+  if(!isPlanarMode())return;
+  state.tilt=0;state.rotation=0;state.tiltX=0;state.tiltY=0;state.tiltZ=0;state.wallTilt=0;state.fov=0;
+  if(!isOrthographicCamera)setCameraProjection(true);
+}
+function upgradePlanarSettings(mode,settings,previous=settings){
+  if(!isPlanarMode(mode))return;
+  delete settings.freeMain;
+  const defaultsVersion=mode==='freeGrid'?2:1;
+  if(previous.planarDefaultsVersion!==defaultsVersion&&(previous.corner==null||Number(previous.corner)===0))settings.corner=15;
+  settings.planarDefaultsVersion=defaultsVersion;
+}
 function applyModeSettings(mode){
   const settings=modeSettings[mode];
-  MODE_SETTING_KEYS.forEach(key=>{state[key]=settings[key]??(key==='stagger'?50:key==='staggerDirection'?'horizontal':key==='spacingMode'?'all':key==='tiltAxis'?(isGridMode(mode)?'z':'x'):(key==='cameraAxis'?'x':state[key]))});
+  upgradePlanarSettings(mode,settings);
+  MODE_SETTING_KEYS.forEach(key=>{state[key]=settings[key]??(key==='stagger'||key==='staggerHorizontal'||key==='staggerVertical'?50:key==='staggerDirection'?'horizontal':key==='spacingMode'?'all':key==='tiltAxis'?(isGridMode(mode)?'z':'x'):(key==='cameraAxis'?'x':state[key]))});
+  if(!Number.isFinite(Number(settings.staggerHorizontal)))state.staggerHorizontal=Number.isFinite(Number(settings.stagger))?Number(settings.stagger):50;
+  if(!Number.isFinite(Number(settings.staggerVertical)))state.staggerVertical=Number.isFinite(Number(settings.stagger))?Number(settings.stagger):50;
+  state.stagger=staggerValueFor(state);
   const legacyTilt=Number(settings.wallTilt);
   if(!Number.isFinite(Number(settings.tiltX)))state.tiltX=Number.isFinite(legacyTilt)?legacyTilt:0;
   if(!Number.isFinite(Number(settings.tiltY)))state.tiltY=0;
@@ -1223,7 +2369,8 @@ function applyModeSettings(mode){
   state.wallTilt=tiltValueFor(state,state.tiltAxis);
   if(Array.isArray(settings.cameraTarget))cameraTarget.fromArray(settings.cameraTarget);
   else cameraTarget.set((settings.viewOffsetX||0)/DESIGN_SCALE,(settings.viewOffsetY||0)/DESIGN_SCALE,0);
-  setCameraProjection(isIsometricMode(mode)||Number(state.fov)<=0);
+  enforcePlanarView();
+  setCameraProjection(isPlanarMode(mode)||isIsometricMode(mode)||Number(state.fov)<=0);
   if(!isOrthographicCamera)camera.fov=state.fov;
 }
 function syncViewControls(){
@@ -1280,8 +2427,11 @@ function syncCardOpacity(){
     card.frontMaterial.depthWrite=opacity>=.999;card.backMaterial.depthWrite=opacity>=.999;
     card.frontMaterial.needsUpdate=true;card.backMaterial.needsUpdate=true;
   }
+  if(state.mode==='bloom'&&bloomAnimation.entranceEnabled)updateBloomAnimationPose();
+  else if(bloomAnimation.entranceEnabled)applyEntranceAnimationPose();
 }
 function updateModeUI(){
+  const free=isPlanarMode();
   const curved=isCurvedMode();
   const grid=isGridMode();
   const isometricMode=isIsometricMode();
@@ -1293,39 +2443,60 @@ function updateModeUI(){
   $('#singlePreset').classList.toggle('selected',state.mode==='single');
   state.imageDirection=['up','right','down','left'].includes(state.imageDirection)?state.imageDirection:'up';
   document.querySelectorAll('[data-image-direction]').forEach(button=>{const active=button.dataset.imageDirection===state.imageDirection;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
+  $('#freeGridPreset').classList.toggle('selected',state.mode==='freeGrid');
+  $('#regularGridPreset').classList.toggle('selected',state.mode==='regularGrid');
+  $('#roomPreset').classList.toggle('selected',state.mode==='room');
+  $('#concentricPreset').classList.toggle('selected',isConcentricMode());
+  $('#concentricLayoutSettings').classList.toggle('mode-hidden',!isConcentricMode());
+  $('#freeGridLayoutSettings').classList.toggle('mode-hidden',!free);
+  $('#cardHeightInput').closest('.range-control').classList.toggle('mode-hidden',free);
+  $('#cardWidthInput').closest('.range-control').classList.toggle('mode-hidden',free);
   $('#gridPreset').classList.toggle('selected',state.mode==='grid');
   $('#isometricPreset').classList.toggle('selected',isometricMode);
   // Grid walls use the same camera controls as the other walls. Their
   // default view remains isometric, but the user can orbit and pan it.
-  frame.classList.toggle('grid-locked',false);
+  frame.classList.toggle('grid-locked',free);
+  $('#tiltGizmoToggle').classList.toggle('mode-hidden',free);
+  if(free)setTiltGizmoVisible(false);
+  $('#freeEdgeInput').closest('.range-control').classList.toggle('mode-hidden',state.mode==='regularGrid');
+  document.querySelector('[data-free-direction]').closest('.grid-choice-control').classList.toggle('mode-hidden',state.mode==='regularGrid');
   $('#ringLayoutSettings').classList.toggle('mode-hidden',!ring);
   $('#ringSpacingControl').classList.toggle('mode-hidden',state.mode==='bloom');
+  syncBloomAnimationControls();
   $('#curvedLayoutSettings').classList.toggle('mode-hidden',!curved);
+  document.querySelector('#curvedLayoutSettings .curved-stagger-direction')?.classList.toggle('mode-hidden',false);
+  const staggerLabel=document.querySelector('#staggerInput')?.closest('.range-control')?.querySelector('span');
+  if(staggerLabel)staggerLabel.firstChild.textContent=state.mode==='room'?'交替错位 ':'错位程度 ';
+  document.querySelector('#curvedLayoutSettings #staggerInput')?.closest('.range-control')?.classList.toggle('mode-hidden',false);
+  document.querySelector('#curvedLayoutSettings #curveBendControl')?.classList.toggle('mode-hidden',state.mode==='room');
+  $('#roomWallStaggerControl')?.classList.toggle('mode-hidden',true);
+  if($('#roomWallStaggerInput')){state.roomWallStagger=THREE.MathUtils.clamp(Number(state.roomWallStagger)||0,0,40);$('#roomWallStaggerInput').value=state.roomWallStagger;$('#roomWallStaggerOutput').textContent=`${state.roomWallStagger}%`}
   $('.single-fixed-edge-control')?.classList.toggle('mode-hidden',state.mode!=='single');
   $('#decorativeWallControls')?.classList.toggle('mode-hidden',state.mode!=='single');
   document.querySelectorAll('[data-single-fixed-edge]').forEach(button=>{const active=button.dataset.singleFixedEdge===state.fixedEdge;button.classList.toggle('active',active);button.setAttribute('aria-pressed',String(active))});
   $('#gridLayoutSettings').classList.toggle('mode-hidden',!grid);
-  $('#photoOpacityControl').classList.toggle('mode-hidden',!ring);
-  $('#contentRotationControl').classList.toggle('mode-hidden',curved||grid);
-  $('#backBrightnessInput').closest('.range-control').classList.toggle('mode-hidden',grid||state.mode==='bloom');
-  $('#wallTiltControl').classList.toggle('mode-hidden',false);
-  $('#tiltAxisControl').classList.toggle('mode-hidden',false);
-  $('#cameraAxisControl').classList.toggle('mode-hidden',false);
-  $('#cameraRotationControl').classList.toggle('mode-hidden',false);
-  $('#fovInput').closest('.range-control').classList.toggle('mode-hidden',isometricMode);
+  $('#photoOpacityControl').classList.toggle('mode-hidden',!ring&&!isConcentricMode());
+  $('#contentRotationControl').classList.toggle('mode-hidden',curved||grid||free);
+  $('#backBrightnessInput').closest('.range-control').classList.toggle('mode-hidden',grid||free||state.mode==='bloom');
+  $('#wallTiltControl').classList.toggle('mode-hidden',free);
+  $('#tiltAxisControl').classList.toggle('mode-hidden',free);
+  $('#cameraAxisControl').classList.toggle('mode-hidden',free);
+  $('#cameraRotationControl').classList.toggle('mode-hidden',free);
+  $('#fovInput').closest('.range-control').classList.toggle('mode-hidden',isometricMode||free);
   $('#viewOffsetXInput').closest('.range-control').classList.toggle('mode-hidden',false);
   $('#viewOffsetYInput').closest('.range-control').classList.toggle('mode-hidden',false);
   $('#viewZoomInput').closest('.range-control').classList.toggle('mode-hidden',false);
   $('#settingsTitle').textContent='设置';
-  const modeLabel=currentLanguage==='en'?(state.mode==='curvedHorizontal'?'Horizontal curve wall':state.mode==='curved'?'Vertical curve wall':state.mode==='bloom'?'Bloom ring':state.mode==='single'?'Single-side bend':state.mode==='isometric'?'Isometric 45°':state.mode==='grid'?'Tilted grid wall':'Ring curve'):(state.mode==='curvedHorizontal'?'左右弧形':state.mode==='curved'?'上下弧形':state.mode==='bloom'?'环形绽放':state.mode==='single'?'单侧弯曲':state.mode==='isometric'?'等距45度':state.mode==='grid'?'倾斜网格墙':'环绕弯曲');
+  const modeLabel=currentLanguage==='en'?(state.mode==='room'?'Four-sided gallery':state.mode==='regularGrid'?'Regular grid wall':free?'Free grid':state.mode==='curvedHorizontal'?'Horizontal curve wall':state.mode==='curved'?'Vertical curve wall':state.mode==='bloom'?'Bloom ring':state.mode==='single'?'Single-side bend':state.mode==='isometric'?'Isometric 45°':state.mode==='grid'?'Tilted grid wall':'Ring curve'):(state.mode==='room'?'四面展廊':state.mode==='regularGrid'?'规整网格墙':free?'自由网格墙':state.mode==='curvedHorizontal'?'左右弧形':state.mode==='curved'?'上下弧形':state.mode==='bloom'?'环形绽放':state.mode==='single'?'单侧弯曲':state.mode==='isometric'?'等距45度':state.mode==='grid'?'倾斜网格墙':'环绕弯曲');
   const projectTitle=state.projectName||'未命名项目';
   const displayProjectTitle=currentLanguage==='en'?(projectTitle==='默认项目'?'Default project':projectTitle==='未命名项目'?'Untitled project':projectTitle):projectTitle;
-  $('#projectName').firstChild.textContent=`${displayProjectTitle} · ${modeLabel} `;
+  const shownModeLabel=isConcentricMode()?(currentLanguage==='en'?'Concentric ring wall':'同心环绕墙'):modeLabel;
+  $('#projectName').firstChild.textContent=`${displayProjectTitle} · ${shownModeLabel} `;
   const previewTip=$('#previewTip');
-  if(previewTip)previewTip.innerHTML='<kbd>左键拖动</kbd> 360度查看 · <kbd>Alt + 左键</kbd> 平移视角 · <kbd>滚轮</kbd> 缩放照片 <span>·</span> <kbd>双击</kbd> 选中并替换';
+  if(previewTip)previewTip.innerHTML=free?'<kbd>左键拖动</kbd> 平移视角 · <kbd>滚轮</kbd> 缩放照片 <span>·</span> <kbd>双击</kbd> 选中并替换':'<kbd>左键拖动</kbd> 360度查看 · <kbd>Alt + 左键</kbd> 平移视角 · <kbd>滚轮</kbd> 缩放照片 <span>·</span> <kbd>双击</kbd> 选中并替换';
   $('#slotMinus').disabled=false;$('#slotPlus').disabled=false;
   syncCardSizeControls();syncViewControls();syncVisualControls();
-  if(curved){normalizeCurvedGrid(state.rows,state.columns,'rows');syncCurvedControls();fitCamera(true)}else if(grid){normalizeCurvedGrid(state.rows,state.columns,'rows');syncGridControls();fitCamera(true)}else{syncRingControls();fitCamera(true)}
+  if(isConcentricMode()){syncConcentricControls();fitCamera(true)}else if(free){syncFreeGridControls();fitCamera(true)}else if(curved){normalizeCurvedGrid(state.rows,state.columns,'rows');syncCurvedControls();fitCamera(true)}else if(grid){normalizeCurvedGrid(state.rows,state.columns,'rows');syncGridControls();fitCamera(true)}else{syncRingControls();fitCamera(true)}
   // Grid controls can normalize axis values; refresh the shared tilt readout
   // after that normalization so the selected Z value is visible immediately.
   syncViewControls();
@@ -1334,6 +2505,9 @@ function updateModeUI(){
 }
 async function setMode(mode){
   if(mode===state.mode)return;
+  if(state.mode==='bloom')stopBloomAnimation();
+  animationTimeline.playing=false;animationTimeline.currentTime=0;animationTimeline._lastTime=0;
+  if(animationTimelineRaf){cancelAnimationFrame(animationTimelineRaf);animationTimelineRaf=0}
   const job=++modeSwitchJob;stage.classList.add('project-loading');
   // A render may already have queued a debounced project save. Cancel it
   // while the async photo set is switching so an older mode cannot overwrite
@@ -1459,7 +2633,12 @@ async function setPhotoPreviewSource(photo,quality=previewQuality){
   photo.previewUrls??={};
   photo.previewBitmaps??={};
   photo.previewCanvases??={};
-  const maxDimension=PREVIEW_QUALITY_LEVELS[quality]?.maxDimension||null;
+  const configuredMaxDimension=PREVIEW_QUALITY_LEVELS[quality]?.maxDimension||null;
+  // Original sources remain in `fullSrc` and IndexedDB for export. For a
+  // large wall, keep the interactive WebGL texture bounded so dozens of 4K
+  // uploads do not exhaust GPU memory before the user can edit the scene.
+  const largeWallMaxDimension=state.count>48?768:state.count>32?1024:null;
+  const maxDimension=configuredMaxDimension||largeWallMaxDimension;
   if(!photo.previewCanvases[quality]&&!photo.previewBitmaps[quality]&&!photo.previewUrls[quality]){
     photo.previewCanvases[quality]=await createPreviewCanvas(photo.blob,maxDimension);
     if(!photo.previewCanvases[quality])photo.previewBitmaps[quality]=await createPreviewBitmap(photo.blob,maxDimension);
@@ -1482,12 +2661,12 @@ function captureProjectThumbnail(){
 }
 function projectPhotoRef(photo){
   if(!photo)return null;
-  return {src:photo.assetId?null:photo.src||'',assetId:photo.assetId||null,name:photo.name||'',sample:Boolean(photo.sample),imageScale:photo.imageScale,imageOffsetX:photo.imageOffsetX,imageOffsetY:photo.imageOffsetY};
+  return {src:photo.assetId?null:photo.src||'',assetId:photo.assetId||null,name:photo.name||'',sample:Boolean(photo.sample),aspect:photo.aspect,imageScale:photo.imageScale,imageScaleX:photo.imageScaleX,imageScaleY:photo.imageScaleY,imageOffsetX:photo.imageOffsetX,imageOffsetY:photo.imageOffsetY};
 }
 function clonePhotoRef(photo){return photo?{...photo}:null}
 function fillPhotoRefs(existing,count){
   const photos=Array.isArray(existing)?existing.map(clonePhotoRef):[];
-  const target=Math.max(3,Math.min(72,Math.max(photos.length,count||0)));
+  const target=Math.max(3,Math.min(Math.max(MAX_PHOTO_COUNT,Number(count)>MAX_PHOTO_COUNT?ROOM_MAX_PHOTO_COUNT:MAX_PHOTO_COUNT),Math.max(photos.length,count||0)));
   for(let index=photos.length;index<target;index++)photos.push({src:samplePhoto(index),name:`示例照片 ${String(index+1).padStart(2,'0')}`,sample:true});
   return photos;
 }
@@ -1497,7 +2676,7 @@ function projectPhotoSets(project){
   const fallback=legacy.map(clonePhotoRef);
   const sets={};
   PHOTO_MODES.forEach(mode=>{
-    const source=Array.isArray(saved[mode])?saved[mode]:fallback;
+    const source=Array.isArray(saved[mode])?saved[mode]:mode==='concentric'?sampleProjectPhotos(DEFAULT_PHOTO_COUNTS.concentric):fallback;
     sets[mode]=source.map(clonePhotoRef);
   });
   return sets;
@@ -1593,19 +2772,101 @@ function migrateSharedProjectImages(){
   if(changed)writeProjects();localStorage.setItem(PROJECT_ISOLATION_MIGRATION_KEY,'1');
 }
 function cloneModeSettings(settings){return {...settings,cameraTarget:Array.isArray(settings?.cameraTarget)?[...settings.cameraTarget]:[0,0,0]}}
+const HISTORY_LIMIT=20;
+const HISTORY_GESTURE_IDLE_MS=700;
+let historyUndoStack=[];
+let historyRedoStack=[];
+let historyCurrent=null;
+let historyRestoring=false;
+let historyBusy=false;
+let historyExcludeNextCheckpoint=false;
+function cloneHistoryAnimation(){
+  return {
+    loopAnimationEnabled:Boolean(loopAnimationEnabled),
+    bloom:{speed:bloomAnimation.speed,fps:bloomAnimation.fps,quality:bloomAnimation.quality,entranceEnabled:Boolean(bloomAnimation.entranceEnabled),entrancePreset:bloomAnimation.entrancePreset,entranceMode:bloomAnimation.entranceMode},
+    timeline:{loopDuration:animationTimeline.loopDuration,entranceDuration:animationTimeline.entranceDuration},
+    keyframes:[...animationKeyframes.entries()].map(([key,frames])=>[key,frames.map(frame=>({time:Number(frame.time),value:Number(frame.value)}))]),
+  };
+}
+function captureHistorySnapshot(){
+  saveActivePhotoSet(state.mode);
+  return {
+    settings:captureProjectSettings(),
+    photosByMode:Object.fromEntries(PHOTO_MODES.map(mode=>[mode,(state.photosByMode[mode]||[]).map(projectPhotoRef)])),
+    animation:cloneHistoryAnimation(),
+  };
+}
+function historyEntry(snapshot=captureHistorySnapshot()){return {snapshot,serialized:JSON.stringify(snapshot)}}
+function syncHistoryControls(){
+  const undo=$('#undoButton'),redo=$('#redoButton');
+  if(undo){undo.disabled=!historyUndoStack.length;undo.title=uiText('撤销','Undo');undo.setAttribute('aria-label',uiText('撤销','Undo'))}
+  if(redo){redo.disabled=!historyRedoStack.length;redo.title=uiText('重做','Redo');redo.setAttribute('aria-label',uiText('重做','Redo'))}
+}
+function resetHistoryState(){
+  clearTimeout(historyGestureTimer);historyGestureTimer=null;historyUndoStack=[];historyRedoStack=[];historyCurrent=null;historyExcludeNextCheckpoint=false;
+  if(state.projectId&&!isLoadingProject)historyCurrent=historyEntry();
+  syncHistoryControls();
+}
+function excludeNextHistoryCheckpoint(){historyExcludeNextCheckpoint=true}
+function commitHistoryCheckpoint(){
+  if(historyRestoring||historyBusy||!state.projectId||isLoadingProject)return;
+  const next=historyEntry();
+  if(!historyCurrent){historyCurrent=next;syncHistoryControls();return}
+  if(next.serialized===historyCurrent.serialized)return;
+  historyUndoStack.push(historyCurrent);if(historyUndoStack.length>HISTORY_LIMIT)historyUndoStack.shift();historyCurrent=next;historyRedoStack=[];syncHistoryControls();
+}
+let historyGestureTimer=null;
+function scheduleHistoryGestureCommit(){
+  clearTimeout(historyGestureTimer);
+  historyGestureTimer=setTimeout(()=>{historyGestureTimer=null;commitHistoryCheckpoint();scheduleProjectSave()},HISTORY_GESTURE_IDLE_MS);
+}
+function restoreHistoryAnimation(animation){
+  const source=animation||{};
+  loopAnimationEnabled=Boolean(source.loopAnimationEnabled);
+  Object.assign(bloomAnimation,source.bloom||{});bloomAnimation.playing=false;bloomAnimation.recording=false;
+  Object.assign(animationTimeline,source.timeline||{});animationTimeline.playing=false;animationTimeline.currentTime=0;
+  animationKeyframes.clear();for(const [key,frames] of source.keyframes||[])animationKeyframes.set(key,frames.map(frame=>({time:Number(frame.time)||0,value:Number(frame.value)||0})));
+  syncBloomAnimationControls();setAnimationTimelineTime(0);
+}
+async function restoreHistorySnapshot(snapshot){
+  if(!snapshot)return;
+  historyRestoring=true;clearTimeout(projectSaveTimer);projectSaveTimer=null;
+  if(snapshot.photosByMode){
+    const currentRefs=Object.fromEntries(PHOTO_MODES.map(mode=>[mode,(state.photosByMode[mode]||[]).map(projectPhotoRef)]));
+    if(JSON.stringify(currentRefs)!==JSON.stringify(snapshot.photosByMode)){
+      revokePhotoUrls();
+      const sets={};
+      for(const mode of PHOTO_MODES)sets[mode]=await hydrateProjectPhotos(snapshot.photosByMode[mode]||[],Math.max(3,(snapshot.photosByMode[mode]||[]).length||12));
+      state.photosByMode=sets;
+    }
+  }
+  applyProjectSettings(snapshot.settings||defaultProjectSettings());
+  await hydrateBackgroundImage(snapshot.settings?.backgroundImageAssetId);
+  loadPhotoSet(state.mode);state.count=state.photos.length;cards.length=state.count;state.selected=Math.min(state.selected,state.count-1);
+  restoreHistoryAnimation(snapshot.animation);
+  updateDimensionUI();updateSlots();await syncPhotoSlots();updateModeUI();resize();render(false);renderProjectList();
+  historyRestoring=false;
+}
+async function undoHistory(){
+  if(historyBusy||!historyUndoStack.length)return;historyBusy=true;
+  const target=historyUndoStack.pop();if(historyCurrent)historyRedoStack.push(historyCurrent);if(historyRedoStack.length>HISTORY_LIMIT)historyRedoStack.shift();
+  await restoreHistorySnapshot(target.snapshot);historyCurrent=target;historyBusy=false;syncHistoryControls();saveCurrentProject();notify(uiText('已撤销','Undone'));
+}
+async function redoHistory(){
+  if(historyBusy||!historyRedoStack.length)return;historyBusy=true;
+  const target=historyRedoStack.pop();if(historyCurrent)historyUndoStack.push(historyCurrent);if(historyUndoStack.length>HISTORY_LIMIT)historyUndoStack.shift();
+  await restoreHistorySnapshot(target.snapshot);historyCurrent=target;historyBusy=false;syncHistoryControls();saveCurrentProject();notify(uiText('已重做','Redone'));
+}
 function captureProjectSettings(){
   saveModeSettings(state.mode);
   return {
     mode:state.mode,width:state.width,height:state.height,resolutionPreset:state.resolutionPreset||DEFAULT_RESOLUTION_PRESET,ratioWidth:state.ratioWidth,ratioHeight:state.ratioHeight,cardSizeVersion:1,cardWidth:state.cardWidth,cardHeight:state.cardHeight,modeSettingsVersion:MODE_SETTINGS_VERSION,
-    background:backgroundColor,backgroundImageAssetId:backgroundImage?.assetId||null,
-    modeSettings:{ring:cloneModeSettings(modeSettings.ring),bloom:cloneModeSettings(modeSettings.bloom),curved:cloneModeSettings(modeSettings.curved),curvedHorizontal:cloneModeSettings(modeSettings.curvedHorizontal),single:cloneModeSettings(modeSettings.single),grid:cloneModeSettings(modeSettings.grid),isometric:cloneModeSettings(modeSettings.isometric)},
+    background:backgroundColor,backgroundImageAssetId:backgroundImage?.assetId||null,backgroundScale,backgroundOffsetX,backgroundOffsetY,
+    modeSettings:Object.fromEntries(PHOTO_MODES.map(mode=>[mode,cloneModeSettings(modeSettings[mode])])),
   };
 }
 function defaultProjectSettings(){
-  const ring=createModeSettings('ring'),curved=createModeSettings('curved'),curvedHorizontal=createModeSettings('curvedHorizontal'),single=createModeSettings('single'),grid=createModeSettings('grid');
-  const bloom=createModeSettings('bloom');
-  const isometric=createModeSettings('isometric');
-  return {mode:'ring',width:1920,height:1080,resolutionPreset:DEFAULT_RESOLUTION_PRESET,ratioWidth:16,ratioHeight:9,cardWidth:DEFAULT_CARD_WIDTH,cardHeight:DEFAULT_CARD_HEIGHT,background:'#101014',modeSettingsVersion:MODE_SETTINGS_VERSION,modeSettings:{ring:cloneModeSettings(ring),bloom:cloneModeSettings(bloom),curved:cloneModeSettings(curved),curvedHorizontal:cloneModeSettings(curvedHorizontal),single:cloneModeSettings(single),grid:cloneModeSettings(grid),isometric:cloneModeSettings(isometric)}};
+  return {mode:'ring',width:1920,height:1080,resolutionPreset:DEFAULT_RESOLUTION_PRESET,ratioWidth:16,ratioHeight:9,cardWidth:DEFAULT_CARD_WIDTH,cardHeight:DEFAULT_CARD_HEIGHT,background:'#101014',backgroundScale:100,backgroundOffsetX:0,backgroundOffsetY:0,modeSettingsVersion:MODE_SETTINGS_VERSION,modeSettings:Object.fromEntries(PHOTO_MODES.map(mode=>[mode,cloneModeSettings(createModeSettings(mode))]))};
 }
 function applyProjectSettings(settings){
   const defaults=defaultProjectSettings(),source=settings||defaults;
@@ -1618,10 +2879,17 @@ function applyProjectSettings(settings){
   state.cardHeight=hasCardSize?THREE.MathUtils.clamp(Number(source.cardHeight),40,800):defaults.cardHeight;
   if(typeof source.background==='string')setBackgroundColor(source.background);else setBackgroundColor(defaults.background);
   disposeBackgroundImage();
+  backgroundScale=THREE.MathUtils.clamp(Number(source.backgroundScale)||100,100,300);
+  backgroundOffsetX=THREE.MathUtils.clamp(Number(source.backgroundOffsetX)||0,-100,100);
+  backgroundOffsetY=THREE.MathUtils.clamp(Number(source.backgroundOffsetY)||0,-100,100);
   const saved=source.modeSettings||{};
   PHOTO_MODES.forEach(mode=>{
     const base=createModeSettings(mode),savedSettings=saved[mode]||saved[mode==='curvedHorizontal'?'curved':mode]||{};
     const merged={...base,...savedSettings,cameraTarget:Array.isArray(savedSettings.cameraTarget)?[...savedSettings.cameraTarget]:[...base.cameraTarget]};
+    upgradePlanarSettings(mode,merged,savedSettings);
+    if(mode==='concentric'&&!Object.prototype.hasOwnProperty.call(savedSettings,'concentricOuterRadius')){
+      merged.concentricOuterRadius=merged.radius+(merged.rows-1)*merged.rowGap/DESIGN_SCALE;
+    }
     if(mode==='single'&&savedSettings.singleDefaultsVersion!==base.singleDefaultsVersion){
       Object.assign(merged,base,{cameraTarget:[...base.cameraTarget]});
     }
@@ -1647,8 +2915,31 @@ function applyProjectSettings(settings){
       const legacyTilt=Number(savedSettings.wallTilt);
       if(Number.isFinite(legacyTilt))merged.tiltX=legacyTilt;
     }
+    const legacyStagger=Number(savedSettings.stagger);
+    if(!Object.prototype.hasOwnProperty.call(savedSettings,'staggerHorizontal')){
+      merged.staggerHorizontal=Number.isFinite(legacyStagger)?legacyStagger:(base.staggerHorizontal??base.stagger??50);
+    }
+    if(!Object.prototype.hasOwnProperty.call(savedSettings,'staggerVertical')){
+      merged.staggerVertical=Number.isFinite(legacyStagger)?legacyStagger:(base.staggerVertical??base.stagger??50);
+    }
     if(!Object.prototype.hasOwnProperty.call(savedSettings,'tiltY'))merged.tiltY=0;
     if(!Object.prototype.hasOwnProperty.call(savedSettings,'tiltZ'))merged.tiltZ=0;
+    if(mode==='concentric'&&savedSettings.concentricDefaultsVersion!==CONCENTRIC_DEFAULTS_VERSION){
+      const previousDefaults={rows:3,radius:4.2,concentricOuterRadius:9,rowGap:240,
+        tiltY:0,tiltZ:0,tilt:0,rotation:0,zoom:110,viewOffsetX:0,viewOffsetY:0};
+      const untouched=Object.entries(previousDefaults).every(([key,value])=>Number(savedSettings[key])===value)&&
+        ((Number(savedSettings.tiltX)===0&&Number(savedSettings.fov)===110)||
+         (Number(savedSettings.tiltX)===-55&&Number(savedSettings.fov)===38));
+      const lastDefaults={rows:4,radius:2.03,concentricOuterRadius:5.75,rowGap:124,
+        tiltX:0,tiltY:0,tiltZ:0,tilt:-30,rotation:0,fov:62,zoom:270,viewOffsetX:0,viewOffsetY:60};
+      const lastUntouched=Object.entries(lastDefaults).every(([key,value])=>Number(savedSettings[key])===value)&&
+        Number(savedSettings.concentricHeightStep||0)===0;
+      if((untouched&&Number(savedSettings.concentricHeightStep||0)===0)||lastUntouched){
+        [...Object.keys(previousDefaults),'wallTilt','tiltAxis','tiltX','cameraAxis','fov','concentricHeightStep'].forEach(key=>{merged[key]=base[key]});
+        merged.cameraTarget=[...base.cameraTarget];
+      }
+      merged.concentricDefaultsVersion=CONCENTRIC_DEFAULTS_VERSION;
+    }
     modeSettings[mode]=merged;
   });
   // Early projects were created from the top-level state before the ring's
@@ -1657,6 +2948,32 @@ function applyProjectSettings(settings){
   // only that recognizable legacy combination and leave user adjustments
   // intact once the version marker is present.
   const savedRing=source.modeSettings?.ring||{};
+  const savedRoom=source.modeSettings?.room||{};
+  if(savedRoom.roomDefaultsVersion!==ROOM_DEFAULTS_VERSION){
+    const wasPreviousDefault=Number(savedRoom.rows)===4&&Number(savedRoom.columns)===12&&
+      Number(savedRoom.fov)===42&&Number(savedRoom.zoom)===115&&Number(savedRoom.rotation)===0;
+    Object.assign(modeSettings.room,{roomDefaultsVersion:ROOM_DEFAULTS_VERSION});
+    if(wasPreviousDefault){
+      Object.assign(modeSettings.room,{rows:5,columns:12,fov:62,zoom:140,rotation:0,tiltX:0,tiltY:0,tiltZ:0,wallTilt:0});
+    }
+    const legacyRoomStagger=Number(savedRoom.stagger);
+    const hasSavedHorizontal=Object.prototype.hasOwnProperty.call(savedRoom,'staggerHorizontal');
+    const hasSavedVertical=Object.prototype.hasOwnProperty.call(savedRoom,'staggerVertical');
+    const wasPreviousStaggerDefault=(
+      (!hasSavedHorizontal&&!hasSavedVertical&&Number(savedRoom.stagger)===50)||
+      (Number(savedRoom.staggerHorizontal)===50&&Number(savedRoom.staggerVertical)===50&&
+        (Number(savedRoom.stagger)===50||!Number.isFinite(Number(savedRoom.stagger))))
+    );
+    modeSettings.room.staggerDirection=savedRoom.staggerDirection==='horizontal'?'horizontal':'vertical';
+    modeSettings.room.staggerHorizontal=hasSavedHorizontal?Number(savedRoom.staggerHorizontal):Number.isFinite(legacyRoomStagger)?legacyRoomStagger:0;
+    modeSettings.room.staggerVertical=hasSavedVertical?Number(savedRoom.staggerVertical):Number.isFinite(legacyRoomStagger)?legacyRoomStagger:0;
+    if(wasPreviousStaggerDefault){
+      modeSettings.room.staggerHorizontal=0;
+      modeSettings.room.staggerVertical=0;
+    }
+    modeSettings.room.stagger=modeSettings.room.staggerDirection==='vertical'?modeSettings.room.staggerVertical:modeSettings.room.staggerHorizontal;
+    modeSettings.room.roomWallStagger=Number.isFinite(Number(savedRoom.roomWallStagger))?Number(savedRoom.roomWallStagger):0;
+  }
   if(savedRing.ringDefaultsVersion!==RING_DEFAULTS_VERSION &&
     Number(savedRing.wallTilt)===DEFAULT_WALL_TILT &&
     Number(savedRing.tiltX)===0 && savedRing.tiltAxis==='x' && Number(savedRing.tilt)===0){
@@ -1665,7 +2982,10 @@ function applyProjectSettings(settings){
   modeSettings.ring.ringDefaultsVersion=RING_DEFAULTS_VERSION;
   // Projects created before the stagger control existed should retain the
   // original half-step look instead of inheriting an undefined or migrated value.
-  if(source.modeSettingsVersion!==MODE_SETTINGS_VERSION){modeSettings.curved.stagger=50;modeSettings.curvedHorizontal.stagger=50}
+  if(source.modeSettingsVersion!==MODE_SETTINGS_VERSION){
+    modeSettings.curved.stagger=50;modeSettings.curved.staggerHorizontal=50;modeSettings.curved.staggerVertical=50;
+    modeSettings.curvedHorizontal.stagger=50;modeSettings.curvedHorizontal.staggerHorizontal=50;modeSettings.curvedHorizontal.staggerVertical=50;
+  }
   if((source.modeSettingsVersion||0)<11)modeSettings.curvedHorizontal=createModeSettings('curvedHorizontal');
   if((source.modeSettingsVersion||0)<12)modeSettings.curvedHorizontal=createModeSettings('curvedHorizontal');
   // The first bloom implementation inherited the curved ring's plane and
@@ -1705,7 +3025,7 @@ function applyProjectSettings(settings){
   // Roll back the temporary camera-X default migration while preserving the
   // original bloom default for projects saved during that migration.
   if((source.modeSettingsVersion||0)===30&&Number(modeSettings.bloom.tilt)===0)modeSettings.bloom.tilt=17;
-  state.mode=source.mode==='curvedHorizontal'?'curvedHorizontal':source.mode==='single'?'single':source.mode==='curved'?'curved':source.mode==='isometric'?'isometric':source.mode==='grid'?'grid':source.mode==='bloom'?'bloom':'ring';applyModeSettings(state.mode);
+  state.mode=PHOTO_MODES.includes(source.mode)?source.mode:'ring';applyModeSettings(state.mode);
   if(state.mode==='isometric'&&state.rows===4&&state.columns===6){modeSettings.isometric=createModeSettings('isometric');applyModeSettings('isometric')}
 }
 function saveCurrentProject(){
@@ -1713,9 +3033,19 @@ function saveCurrentProject(){
   const project=projects.find(item=>item.id===state.projectId);if(!project)return;
   project.name=state.projectName||project.name||'未命名项目';project.updatedAt=Date.now();persistPhotoSets(project);project.settings=captureProjectSettings();project.thumbnail=captureProjectThumbnail()||project.thumbnail||null;writeProjects();renderProjectList();
 }
+function flushScheduledProjectSave(){
+  projectSaveTimer=null;
+  // A viewport gesture may trigger render() many times. Keep the persistence
+  // debounce from becoming an accidental history checkpoint in the middle of
+  // that gesture; pointerup or the wheel debounce will commit the final state.
+  if(historyGestureTimer||orbitDrag){projectSaveTimer=setTimeout(flushScheduledProjectSave,180);return}
+  if(historyExcludeNextCheckpoint){historyExcludeNextCheckpoint=false;historyCurrent=historyEntry();historyRedoStack=[];syncHistoryControls()}
+  else commitHistoryCheckpoint();
+  saveCurrentProject();
+}
 function scheduleProjectSave(){
-  if(!state.projectId||isLoadingProject||renameEditingId)return;
-  clearTimeout(projectSaveTimer);projectSaveTimer=setTimeout(saveCurrentProject,180);
+  if(!state.projectId||isLoadingProject||renameEditingId||bloomAnimation.recording)return;
+  clearTimeout(projectSaveTimer);projectSaveTimer=setTimeout(flushScheduledProjectSave,180);
 }
 function beginInteractivePreview(){
   if(previewQuality!=='original')return;
@@ -1743,7 +3073,7 @@ function endInteractivePreview(){
 }
 async function applyPreviewQuality(value){
   if(!PREVIEW_QUALITY_LEVELS[value])return;
-  previewQuality=value;try{localStorage.setItem(PREVIEW_QUALITY_KEY,value)}catch{}
+  previewQuality=value;quickPreviewLastRenderAt=0;syncPreviewRendererQuality();try{localStorage.setItem(PREVIEW_QUALITY_KEY,value)}catch{}
   syncPreviewQualityControl(value);
   const job=++previewQualityJob,photos=state.photos.filter(photo=>photo?.fullSrc&&photo?.blob);
   if(!photos.length){notify(`预览精度：${PREVIEW_QUALITY_LEVELS[value].label}`);return}
@@ -1762,16 +3092,22 @@ function syncPreviewQualityControl(value=previewQuality){
 }
 async function switchToFullResolutionTextures(){
   const jobs=[];
-  state.photos.forEach((photo,index)=>{
-    if(!photo?.fullSrc||!photo?.blob)return;
-    jobs.push(setPhotoPreviewSource(photo,'original').then(()=>setCardPhoto(index,photo.fullSrc)));
-  });
-  await Promise.all(jobs);
+  textureBatchDepth++;
+  try{
+    state.photos.forEach((photo,index)=>{
+      if(!photo?.fullSrc||!photo?.blob)return;
+      jobs.push(setPhotoPreviewSource(photo,'original').then(()=>setCardPhoto(index,photo.fullSrc)));
+    });
+    await Promise.all(jobs);
+  }finally{textureBatchDepth=Math.max(0,textureBatchDepth-1);render()}
 }
 async function restorePreviewTextures(){
   const jobs=[];
-  state.photos.forEach((photo,index)=>{if(photo?.src)jobs.push(setPhotoPreviewSource(photo,previewQuality).then(()=>setCardPhoto(index)))});
-  await Promise.all(jobs);
+  textureBatchDepth++;
+  try{
+    state.photos.forEach((photo,index)=>{if(photo?.src)jobs.push(setPhotoPreviewSource(photo,previewQuality).then(()=>setCardPhoto(index)))});
+    await Promise.all(jobs);
+  }finally{textureBatchDepth=Math.max(0,textureBatchDepth-1);render()}
 }
 function revokePhotoUrlsFor(photo){
   const urls=new Set([photo?.objectUrl,photo?.fullObjectUrl,...Object.values(photo?.previewUrls||{})]);
@@ -1787,13 +3123,18 @@ async function hydrateProjectPhotos(photoRefs,count=state.count){
   const sampleFallback=index=>({src:samplePhoto(index),name:`示例照片 ${String(index+1).padStart(2,'0')}`,sample:true});
   return Promise.all(Array.from({length:count},async(_,index)=>{
     const photo=photoRefs?.[index];if(!photo)return sampleFallback(index);
+    // Upgrade built-in samples while retaining their saved order and crop controls.
+    if(photo.sample&&!photo.assetId){
+      const match=/sample-(\d+)\.(?:jpg|svg)(?:\?.*)?$/.exec(photo.src||'');
+      if(match)return {...photo,src:samplePhoto(Number(match[1])-1)};
+    }
     if(photo.assetId){
       const stored=await readPhotoAsset(photo.assetId).catch(()=>null);
       if(!stored)return sampleFallback(index);
-      const url=URL.createObjectURL(stored.blob),hydrated={src:url,objectUrl:url,fullSrc:url,fullObjectUrl:url,blob:stored.blob,previewUrls:{},previewBitmaps:{},previewCanvases:{},assetId:photo.assetId,name:photo.name||stored.name||`槽位 ${index+1}`,imageScale:photo.imageScale,imageOffsetX:photo.imageOffsetX,imageOffsetY:photo.imageOffsetY};
+      const url=URL.createObjectURL(stored.blob),hydrated={src:url,objectUrl:url,fullSrc:url,fullObjectUrl:url,blob:stored.blob,previewUrls:{},previewBitmaps:{},previewCanvases:{},assetId:photo.assetId,name:photo.name||stored.name||`槽位 ${index+1}`,aspect:photo.aspect,imageScale:photo.imageScale,imageScaleX:photo.imageScaleX,imageScaleY:photo.imageScaleY,imageOffsetX:photo.imageOffsetX,imageOffsetY:photo.imageOffsetY};
       await setPhotoPreviewSource(hydrated);if(previewQuality==='original')setPhotoPreviewSource(hydrated,'standard').catch(()=>{});return hydrated;
     }
-    return photo.src?{src:photo.src,name:photo.name||`槽位 ${index+1}`,sample:Boolean(photo.sample),imageScale:photo.imageScale,imageOffsetX:photo.imageOffsetX,imageOffsetY:photo.imageOffsetY}:sampleFallback(index);
+    return photo.src?{src:photo.src,name:photo.name||`槽位 ${index+1}`,sample:Boolean(photo.sample),aspect:photo.aspect,imageScale:photo.imageScale,imageScaleX:photo.imageScaleX,imageScaleY:photo.imageScaleY,imageOffsetX:photo.imageOffsetX,imageOffsetY:photo.imageOffsetY}:sampleFallback(index);
   }));
 }
 function createProjectResetButton(project){
@@ -1825,23 +3166,24 @@ function closeProjectMenu(){const menu=$('#projectMenu');menu?.classList.remove(
 async function initProjects(){
   projects=readProjects();
   migrateSharedProjectImages();
-  if(!projects.length){const now=Date.now();const photoRefs=state.photos.map(projectPhotoRef);const photoSets={ring:photoRefs,bloom:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.bloom),curved:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.curved),curvedHorizontal:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.curvedHorizontal),single:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.single),grid:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.grid),isometric:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.isometric)};projects=[{id:makeId(),name:'默认项目',createdAt:now,updatedAt:now,photos:photoRefs,photosByMode:photoSets,photoSetsVersion:PHOTO_SETS_VERSION,settings:captureProjectSettings()}];writeProjects()}
+  if(!projects.length){const now=Date.now();const photoRefs=state.photos.map(projectPhotoRef);const photoSets={ring:photoRefs,bloom:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.bloom),curved:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.curved),curvedHorizontal:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.curvedHorizontal),single:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.single),grid:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.grid),isometric:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.isometric),freeGrid:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.freeGrid),regularGrid:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.regularGrid),room:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.room)};projects=[{id:makeId(),name:'默认项目',createdAt:now,updatedAt:now,photos:photoRefs,photosByMode:photoSets,photoSetsVersion:PHOTO_SETS_VERSION,settings:captureProjectSettings()}];writeProjects()}
   ensureProjectDefaults();
   let renamedDefault=false;
   projects.forEach(project=>{if(project.name==='示例项目'||project.name==='默认'||project.name==='隔离验证'){project.name='默认项目';project.updatedAt=Date.now();renamedDefault=true}});
   if(renamedDefault)writeProjects();
   const savedId=localStorage.getItem(CURRENT_PROJECT_KEY);const preferred=projects.find(item=>item.name==='默认项目');const first=preferred||projects.find(item=>item.id===savedId)||projects[0];state.projectId=first.id;state.projectName=first.name||'默认项目';localStorage.setItem(CURRENT_PROJECT_KEY,first.id);renderProjectList();
   const photoSets=projectPhotoSets(first);isLoadingProject=true;applyProjectSettings(first.settings||defaultProjectSettings());await hydrateBackgroundImage(first.settings?.backgroundImageAssetId);
-  const desired=state.mode==='isometric'?DEFAULT_PHOTO_COUNTS.isometric:Math.max(3,Math.min(72,(photoSets[state.mode]||[]).length||first.photos?.length||state.count||12));
-  PHOTO_MODES.forEach(mode=>{if(!photoSets[mode]?.length||(mode==='isometric'&&photoSets[mode].length<DEFAULT_PHOTO_COUNTS.isometric))photoSets[mode]=sampleProjectPhotos(mode==='isometric'?DEFAULT_PHOTO_COUNTS.isometric:desired).map(projectPhotoRef)});
+  const roomSamples=photoSets.room?.length&&photoSets.room.every(photo=>photo?.sample!==false);
+  const desired=state.mode==='isometric'?DEFAULT_PHOTO_COUNTS.isometric:state.mode==='room'&&roomSamples&&photoSets.room.length<DEFAULT_PHOTO_COUNTS.room?DEFAULT_PHOTO_COUNTS.room:Math.max(3,Math.min(photoCountLimit(state.mode),(photoSets[state.mode]||[]).length||first.photos?.length||state.count||12));
+  PHOTO_MODES.forEach(mode=>{if(!photoSets[mode]?.length||(mode==='isometric'&&photoSets[mode].length<DEFAULT_PHOTO_COUNTS.isometric)||(mode==='room'&&roomSamples&&photoSets.room.length<DEFAULT_PHOTO_COUNTS.room))photoSets[mode]=sampleProjectPhotos(mode==='isometric'?DEFAULT_PHOTO_COUNTS.isometric:mode==='room'?DEFAULT_PHOTO_COUNTS.room:desired).map(projectPhotoRef)});
   state.photosByMode={};
-  for(const mode of PHOTO_MODES){const refs=photoSets[mode];state.photosByMode[mode]=await hydrateProjectPhotos(refs,Math.max(3,Math.min(72,refs.length||desired)))}
+  for(const mode of PHOTO_MODES){const refs=photoSets[mode];state.photosByMode[mode]=await hydrateProjectPhotos(refs,Math.max(3,Math.min(photoCountLimit(mode),refs.length||desired)))}
   loadPhotoSet(state.mode,desired);state.count=state.photos.length;
   // Applying settings before hydration temporarily uses the initial 12-card
   // count. Restore the selected mode once its photo set is loaded so grid
   // rows/columns are normalized against the real count (24 for isometric).
   applyModeSettings(state.mode);
-  cards.length=state.count;state.selected=0;updateDimensionUI();updateSlots();await syncPhotoSlots();updateModeUI();resize();renderProjectList();render();isLoadingProject=false;stage.classList.remove('project-loading');
+  cards.length=state.count;state.selected=0;updateDimensionUI();updateSlots();await syncPhotoSlots();isLoadingProject=false;updateModeUI();resize();renderProjectList();render();stage.classList.remove('project-loading');resetHistoryState();
 }
 async function switchProject(projectId){
   const project=projects.find(item=>item.id===projectId);if(!project||project.id===state.projectId){closeProjectMenu();return}
@@ -1853,14 +3195,14 @@ async function switchProject(projectId){
     if(result.changed){project.photos=result.photos;project.photosByMode?.ring&&(project.photosByMode.ring=result.photos);project.thumbnail=null;project.updatedAt=Date.now();writeProjects()}
   }
   clearTimeout(projectSaveTimer);projectSaveTimer=null;saveCurrentProject();await Promise.allSettled([...pendingAssetWrites.values()]);revokePhotoUrls();cards.forEach(card=>{if(card)releaseCard(card)});cards.length=0;isLoadingProject=true;state.projectId=project.id;state.projectName=project.name||'未命名项目';applyProjectSettings(project.settings||defaultProjectSettings());
-  await hydrateBackgroundImage(project.settings?.backgroundImageAssetId);const photoSets=projectPhotoSets(project);const desired=state.mode==='isometric'?DEFAULT_PHOTO_COUNTS.isometric:Math.max(3,Math.min(72,(photoSets[state.mode]||[]).length||project.photos?.length||state.count||12));
-  PHOTO_MODES.forEach(mode=>{if(!photoSets[mode]?.length||(mode==='isometric'&&photoSets[mode].length<DEFAULT_PHOTO_COUNTS.isometric))photoSets[mode]=sampleProjectPhotos(mode==='isometric'?DEFAULT_PHOTO_COUNTS.isometric:desired).map(projectPhotoRef)});
+  await hydrateBackgroundImage(project.settings?.backgroundImageAssetId);const photoSets=projectPhotoSets(project);const roomSamples=photoSets.room?.length&&photoSets.room.every(photo=>photo?.sample!==false);const desired=state.mode==='isometric'?DEFAULT_PHOTO_COUNTS.isometric:state.mode==='room'&&roomSamples&&photoSets.room.length<DEFAULT_PHOTO_COUNTS.room?DEFAULT_PHOTO_COUNTS.room:Math.max(3,Math.min(photoCountLimit(state.mode),(photoSets[state.mode]||[]).length||project.photos?.length||state.count||12));
+  PHOTO_MODES.forEach(mode=>{if(!photoSets[mode]?.length||(mode==='isometric'&&photoSets[mode].length<DEFAULT_PHOTO_COUNTS.isometric)||(mode==='room'&&roomSamples&&photoSets.room.length<DEFAULT_PHOTO_COUNTS.room))photoSets[mode]=sampleProjectPhotos(mode==='isometric'?DEFAULT_PHOTO_COUNTS.isometric:mode==='room'?DEFAULT_PHOTO_COUNTS.room:desired).map(projectPhotoRef)});
   state.photosByMode={};
-  for(const mode of PHOTO_MODES){const refs=photoSets[mode];state.photosByMode[mode]=await hydrateProjectPhotos(refs,Math.max(3,Math.min(72,refs.length||desired)))}
-  loadPhotoSet(state.mode,desired);state.count=state.photos.length;applyModeSettings(state.mode);cards.length=state.count;localStorage.setItem(CURRENT_PROJECT_KEY,state.projectId);state.selected=0;updateDimensionUI();updateSlots();await syncPhotoSlots();updateModeUI();resize();renderProjectList();render();isLoadingProject=false;stage.classList.remove('project-loading');closeProjectMenu();notify(`已切换项目：${state.projectName}`)
+  for(const mode of PHOTO_MODES){const refs=photoSets[mode];state.photosByMode[mode]=await hydrateProjectPhotos(refs,Math.max(3,Math.min(photoCountLimit(mode),refs.length||desired)))}
+  loadPhotoSet(state.mode,desired);state.count=state.photos.length;applyModeSettings(state.mode);cards.length=state.count;localStorage.setItem(CURRENT_PROJECT_KEY,state.projectId);state.selected=0;updateDimensionUI();updateSlots();await syncPhotoSlots();isLoadingProject=false;updateModeUI();resize();renderProjectList();render();stage.classList.remove('project-loading');resetHistoryState();closeProjectMenu();notify(`已切换项目：${state.projectName}`)
 }
 function createProject(name){
-  saveCurrentProject();const trimmed=name.trim();const now=Date.now();const photoRefs=sampleProjectPhotos(state.count).map(projectPhotoRef);const photoSets={ring:photoRefs,bloom:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.bloom),curved:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.curved),curvedHorizontal:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.curvedHorizontal),single:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.single),grid:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.grid),isometric:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.isometric)};const project={id:makeId(),name:trimmed||`未命名项目 ${projects.length+1}`,createdAt:now,updatedAt:now,photos:photoRefs,photosByMode:photoSets,photoSetsVersion:PHOTO_SETS_VERSION,settings:captureProjectSettings()};projects.unshift(project);writeProjects();switchProject(project.id)
+  saveCurrentProject();const trimmed=name.trim();const now=Date.now();const photoRefs=sampleProjectPhotos(state.count).map(projectPhotoRef);const photoSets={ring:photoRefs,bloom:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.bloom),curved:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.curved),curvedHorizontal:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.curvedHorizontal),single:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.single),grid:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.grid),isometric:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.isometric),freeGrid:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.freeGrid),regularGrid:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.regularGrid),room:fillPhotoRefs(photoRefs,DEFAULT_PHOTO_COUNTS.room)};const project={id:makeId(),name:trimmed||`未命名项目 ${projects.length+1}`,createdAt:now,updatedAt:now,photos:photoRefs,photosByMode:photoSets,photoSetsVersion:PHOTO_SETS_VERSION,settings:captureProjectSettings()};projects.unshift(project);writeProjects();switchProject(project.id)
 }
 async function resetProject(projectId){
   const project=projects.find(item=>item.id===projectId);if(!project)return;
@@ -1868,11 +3210,11 @@ async function resetProject(projectId){
   const otherAssetIds=new Set(projects.filter(item=>item.id!==projectId).flatMap(item=>PHOTO_MODES.flatMap(mode=>(projectPhotoSets(item)[mode]||[]).map(photo=>photo?.assetId).filter(Boolean))));
   await Promise.allSettled(assetIds.map(id=>pendingAssetWrites.get(id)).filter(Boolean));
   await deletePhotoAssets(assetIds.filter(id=>!otherAssetIds.has(id))).catch(()=>notify('项目已重置，但部分图片缓存清理失败'));
-  const resetRefs=sampleProjectPhotos(12).map(projectPhotoRef),resetSets={ring:resetRefs,bloom:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.bloom),curved:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.curved),curvedHorizontal:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.curvedHorizontal),single:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.single),grid:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.grid),isometric:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.isometric)};project.settings=defaults;project.photos=resetRefs;project.photosByMode=resetSets;project.photoSetsVersion=PHOTO_SETS_VERSION;project.thumbnail=samplePhoto(0);project.updatedAt=Date.now();writeProjects();
+  const resetRefs=sampleProjectPhotos(12).map(projectPhotoRef),resetSets={ring:resetRefs,bloom:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.bloom),curved:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.curved),curvedHorizontal:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.curvedHorizontal),single:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.single),grid:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.grid),isometric:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.isometric),freeGrid:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.freeGrid),regularGrid:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.regularGrid),room:fillPhotoRefs(resetRefs,DEFAULT_PHOTO_COUNTS.room)};project.settings=defaults;project.photos=resetRefs;project.photosByMode=resetSets;project.photoSetsVersion=PHOTO_SETS_VERSION;project.thumbnail=samplePhoto(0);project.updatedAt=Date.now();writeProjects();
   if(state.projectId===projectId){
     clearTimeout(projectSaveTimer);projectSaveTimer=null;revokePhotoUrls();cards.forEach(card=>{if(card)releaseCard(card)});cards.length=0;
-    isLoadingProject=true;applyProjectSettings(defaults);state.mode='ring';state.count=12;state.ringCount=12;state.photos=sampleProjectPhotos(12);state.photosByMode={ring:state.photos,bloom:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.bloom),curved:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.curved),curvedHorizontal:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.curvedHorizontal),single:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.single),grid:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.grid),isometric:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.isometric)};state.selected=0;isLoadingProject=false;
-    updateDimensionUI();updateSlots();syncPhotoSlots();updateModeUI();project.thumbnail=captureProjectThumbnail();writeProjects();
+    isLoadingProject=true;applyProjectSettings(defaults);state.mode='ring';state.count=12;state.ringCount=12;state.photos=sampleProjectPhotos(12);state.photosByMode={ring:state.photos,bloom:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.bloom),curved:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.curved),curvedHorizontal:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.curvedHorizontal),single:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.single),grid:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.grid),isometric:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.isometric),freeGrid:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.freeGrid),regularGrid:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.regularGrid),room:fillPhotoRefs(state.photos,DEFAULT_PHOTO_COUNTS.room)};state.selected=0;isLoadingProject=false;
+    updateDimensionUI();updateSlots();syncPhotoSlots();updateModeUI();project.thumbnail=captureProjectThumbnail();writeProjects();resetHistoryState();
   }
   renderProjectList();notify(`已重置项目：${project.name||'未命名项目'}`);
 }
@@ -1894,7 +3236,7 @@ function readSavedPresets(){
   try{const value=JSON.parse(localStorage.getItem(PRESETS_STORAGE_KEY)||'[]');return Array.isArray(value)?value:[]}catch{return []}
 }
 function writeSavedPresets(presets){try{localStorage.setItem(PRESETS_STORAGE_KEY,JSON.stringify(presets));return true}catch{notify('浏览器存储空间不足，预设未保存');return false}}
-function presetModeLabel(mode){return mode==='isometric'?'等距45度':mode==='grid'?'倾斜网格墙':mode==='bloom'?'环形绽放':mode==='single'?'单侧弯曲':mode==='curvedHorizontal'?'左右弧形墙':mode==='curved'?'上下弧形墙':'环绕弯曲'}
+function presetModeLabel(mode){return mode==='concentric'?'同心环绕墙':mode==='room'?'四面展廊':mode==='regularGrid'?'规整网格墙':mode==='freeGrid'?'自由网格墙':mode==='isometric'?'等距45度':mode==='grid'?'倾斜网格墙':mode==='bloom'?'环形绽放':mode==='single'?'单侧弯曲':mode==='curvedHorizontal'?'左右弧形墙':mode==='curved'?'上下弧形墙':'环绕弯曲'}
 function renderSavedPresets(){
   const list=$('#savedPresets');if(!list)return;list.replaceChildren();
   const presets=readSavedPresets();
@@ -1923,6 +3265,7 @@ function restorePreset(preset){
   if(!preset||!PHOTO_MODES.includes(preset.mode)||!preset.settings)return;
   const defaults=createModeSettings(preset.mode);
   modeSettings[preset.mode]={...defaults,...preset.settings,cameraTarget:Array.isArray(preset.settings.cameraTarget)?preset.settings.cameraTarget:[0,0,0]};
+  upgradePlanarSettings(preset.mode,modeSettings[preset.mode],preset.settings);
   if(Number.isFinite(preset.width)&&Number.isFinite(preset.height)){state.width=preset.width;state.height=preset.height;const ratio=Number.isFinite(preset.ratioWidth)&&Number.isFinite(preset.ratioHeight)?{width:preset.ratioWidth,height:preset.ratioHeight}:ratioPartsForDimensions(state.width,state.height);state.ratioWidth=clampRatioValue(ratio.width,16);state.ratioHeight=clampRatioValue(ratio.height,9)}
   if(preset.cardSizeVersion===1&&Number.isFinite(preset.cardWidth))state.cardWidth=THREE.MathUtils.clamp(preset.cardWidth,40,600);
   if(preset.cardSizeVersion===1&&Number.isFinite(preset.cardHeight))state.cardHeight=THREE.MathUtils.clamp(preset.cardHeight,40,800);
@@ -1933,7 +3276,7 @@ function restorePreset(preset){
   state.selected=0;updateDimensionUI();updateSlots();syncPhotoSlots();updateModeUI();notify(`已恢复预设：${preset.name||'未命名预设'}`);
 }
 $('#savePresetButton').addEventListener('click',async()=>{
-  const defaultName=state.mode==='isometric'?'等距45度预设':state.mode==='grid'?'倾斜网格墙预设':state.mode==='bloom'?'环形绽放预设':state.mode==='ring'?'环绕弯曲预设':state.mode==='curvedHorizontal'?'左右弧形墙预设':'上下弧形墙预设';
+  const defaultName=presetModeLabel(state.mode)+'预设';
   const input=$('#presetNameInput');const name=input.value.trim()||defaultName;
   const button=$('#savePresetButton');button.disabled=true;
   try{
@@ -1950,10 +3293,9 @@ $('#savedPresets').addEventListener('click',event=>{
 renderSavedPresets();
 async function loadFiles(fileList,start=pickerSlot){
   const files=[...fileList].filter(f=>f.type.startsWith('image/'));if(!files.length)return;
-  if(files.length>state.count-start){
-    const count=Math.min(72,start+files.length);if(count>state.count)setCount(count);
-  }
-  const selectedFiles=files.slice(0,state.count-start);notify(`正在生成预览（${PREVIEW_QUALITY_LEVELS[previewQuality].label}）`);
+  const selectedFiles=files.slice(0,state.count-start);
+  if(!selectedFiles.length){notify('当前槽位已满，未导入图片');return}
+  notify(`正在生成预览（${PREVIEW_QUALITY_LEVELS[previewQuality].label}）`);
   for(let offset=0;offset<selectedFiles.length;offset++){
     const file=selectedFiles[offset],i=start+offset,old=state.photos[i];
     if(old)revokePhotoUrlsFor(old);
@@ -1961,7 +3303,13 @@ async function loadFiles(fileList,start=pickerSlot){
     await setPhotoPreviewSource(photo);if(previewQuality==='original')setPhotoPreviewSource(photo,'standard').catch(()=>{});state.photos[i]=photo;
     savePhotoAsset(assetId,file).catch(()=>notify('图片已加载，但浏览器保存失败'));
   }
-  state.selected=start;updateSlots();syncPhotoSlots();scheduleProjectSave();notify(files.length===1?'图片已替换':`已读取 ${files.length} 张图片`)
+  state.selected=start;updateSlots();syncPhotoSlots();excludeNextHistoryCheckpoint();scheduleProjectSave();
+  const ignored=files.length-selectedFiles.length;
+  notify(files.length===1?'图片已替换':ignored?`已读取 ${selectedFiles.length} 张图片，${ignored} 张因槽位已满未导入`:`已读取 ${selectedFiles.length} 张图片`)
+}
+function nextPhotoFillSlot(fallback=state.selected){
+  const empty=state.photos.findIndex(photo=>!photo||photo.sample);
+  return empty>=0?empty:fallback;
 }
 async function clearAllImages(){
   const assetIds=state.photos.map(photo=>photo?.assetId).filter(Boolean);
@@ -1971,7 +3319,7 @@ async function clearAllImages(){
   state.photos=sampleProjectPhotos(state.count);
   state.photosByMode[state.mode]=state.photos;
   state.selected=0;
-  updateSlots();syncPhotoSlots();scheduleProjectSave();
+  updateSlots();syncPhotoSlots();excludeNextHistoryCheckpoint();scheduleProjectSave();
   notify('已清空图片，已恢复示例图片占位');
 }
 function hitCard(event){const rect=renderer.domElement.getBoundingClientRect();const p=new THREE.Vector2((event.clientX-rect.left)/rect.width*2-1,-(event.clientY-rect.top)/rect.height*2+1);const ray=new THREE.Raycaster();ray.setFromCamera(p,camera);return ray.intersectObjects(cards.filter(Boolean).map(c=>c.mesh))[0]?.object||null}
@@ -2021,20 +3369,48 @@ resolutionPresetMenu?.addEventListener('click',event=>{
 $('#bgColorInput').addEventListener('input',e=>{setBackgroundColor(e.target.value);render();scheduleProjectSave()});
 $('#bgImageInput').addEventListener('change',async e=>{const file=e.target.files?.[0];if(file)await loadBackgroundImage(file);e.target.value=''});
 $('#clearBackgroundImage').addEventListener('click',()=>{disposeBackgroundImage();updateBackgroundImageUI();render();scheduleProjectSave()});
+$('#editBackgroundImage').addEventListener('click',event=>{event.preventDefault();if(!backgroundImage)return;backgroundAdjustOpen=!backgroundAdjustOpen;updateBackgroundImageUI()});
+$('#closeBackgroundAdjust').addEventListener('click',()=>{backgroundAdjustOpen=false;updateBackgroundImageUI()});
+$('#resetBackgroundAdjust').addEventListener('click',()=>{backgroundScale=100;backgroundOffsetX=0;backgroundOffsetY=0;applyBackgroundTextureTransform();syncBackgroundAdjustControls();render();scheduleProjectSave()});
+$('#backgroundScaleInput').addEventListener('input',event=>{backgroundScale=THREE.MathUtils.clamp(Number(event.target.value)||100,100,300);applyBackgroundTextureTransform();syncBackgroundAdjustControls();render();scheduleProjectSave()});
+$('#backgroundOffsetXInput').addEventListener('input',event=>{backgroundOffsetX=THREE.MathUtils.clamp(Number(event.target.value)||0,-100,100);applyBackgroundTextureTransform();syncBackgroundAdjustControls();render();scheduleProjectSave()});
+$('#backgroundOffsetYInput').addEventListener('input',event=>{backgroundOffsetY=THREE.MathUtils.clamp(Number(event.target.value)||0,-100,100);applyBackgroundTextureTransform();syncBackgroundAdjustControls();render();scheduleProjectSave()});
 $('#applyBackgroundRatio').addEventListener('click',()=>{const ratio=backgroundRatio();if(!ratio)return;$('#ratioWidthInput').value=ratio.width;$('#ratioHeightInput').value=ratio.height;applyCustomAspectRatioInputs();notify(`已应用图片比例 ${ratio.width}:${ratio.height}`)});
 $('#ringPreset').addEventListener('click',()=>setMode('ring'));
 $('#bloomPreset').addEventListener('click',()=>setMode('bloom'));
 $('#curvedPreset').addEventListener('click',()=>setMode('curved'));
 $('#curvedHorizontalPreset').addEventListener('click',()=>setMode('curvedHorizontal'));
 $('#singlePreset').addEventListener('click',()=>setMode('single'));
+$('#roomPreset').addEventListener('click',()=>setMode('room'));
+$('#concentricPreset').addEventListener('click',()=>setMode('concentric'));
+for(const [name,key,scale] of [['Rings','rows',1],['Radius','radius',1/DESIGN_SCALE],
+  ['OuterRadius','concentricOuterRadius',1/DESIGN_SCALE],['RingGap','rowGap',1],['HeightStep','concentricHeightStep',1],['Stagger','staggerHorizontal',1]]){
+  $('#concentric'+name+'Input').addEventListener('input',event=>{
+    if(!isConcentricMode())return;
+    state[key]=Number(event.target.value)*scale;
+    if(name==='RingGap'||name==='Rings')state.concentricOuterRadius=state.radius+(state.rows-1)*state.rowGap/DESIGN_SCALE;
+    syncConcentricControls();updateTransforms();scheduleProjectSave();
+  });
+}
 document.querySelectorAll('[data-single-fixed-edge]').forEach(button=>button.addEventListener('click',()=>{if(state.mode!=='single')return;state.fixedEdge=button.dataset.singleFixedEdge;document.querySelectorAll('[data-single-fixed-edge]').forEach(item=>{const active=item.dataset.singleFixedEdge===state.fixedEdge;item.classList.toggle('active',active);item.setAttribute('aria-pressed',String(active))});updateTransforms(false,true);scheduleProjectSave()}));
 document.querySelectorAll('[data-decorative-wall]').forEach(button=>button.addEventListener('click',()=>{if(state.mode!=='single')return;state.decorativeWallEnabled=button.dataset.decorativeWall==='on';updateModeUI();updateTransforms(false,true);scheduleProjectSave()}));
 $('#decorativeWallOpacityInput').addEventListener('input',e=>{if(state.mode!=='single')return;state.decorativeWallOpacity=Number(e.target.value);syncCurvedControls();updateTransforms(false,true);scheduleProjectSave()});
 $('#decorativeWallProgressInput').addEventListener('input',e=>{if(state.mode!=='single')return;state.decorativeWallProgress=Number(e.target.value);syncCurvedControls();updateTransforms(false,true);scheduleProjectSave()});
+$('#regularGridPreset').addEventListener('click',()=>setMode('regularGrid'));
+$('#freeGridPreset').addEventListener('click',()=>setMode('freeGrid'));
+for(const [attribute,key] of [['free-direction','freeDirection']]){
+  document.querySelectorAll('[data-'+attribute+']').forEach(button=>button.addEventListener('click',()=>{
+    if(!isPlanarMode())return;
+    state[key]=button.getAttribute('data-'+attribute);
+    updateTransforms();scheduleProjectSave();
+  }));
+}
+for(const key of ['Gap','Edge'])$('#free'+key+'Input').addEventListener('input',event=>{if(!isPlanarMode())return;state['free'+key]=Number(event.target.value);updateTransforms();scheduleProjectSave()});
+$('#shuffleFreeGrid').addEventListener('click',()=>{if(!isPlanarMode())return;state.freeSeed=nextGridSeed(Array(state.count).fill(1),planarLayoutOptions());updateTransforms();scheduleProjectSave()});
 $('#gridPreset').addEventListener('click',()=>setMode('grid'));
 $('#isometricPreset').addEventListener('click',()=>setMode('isometric'));
-$('#cardWidthInput').addEventListener('input',e=>{state.cardWidth=Number(e.target.value);syncCardSizeControls();updateTransforms()});
-$('#cardHeightInput').addEventListener('input',e=>{state.cardHeight=Number(e.target.value);syncCardSizeControls();updateTransforms()});
+$('#cardWidthInput').addEventListener('input',e=>{state.cardWidth=Number(e.target.value);syncCardSizeControls();updateTransforms();if(photoEditSession)syncPhotoEditControls()});
+$('#cardHeightInput').addEventListener('input',e=>{state.cardHeight=Number(e.target.value);syncCardSizeControls();updateTransforms();if(photoEditSession)syncPhotoEditControls()});
 $('#slotMinus').addEventListener('click',()=>adjustSlotCount(-1));$('#slotPlus').addEventListener('click',()=>adjustSlotCount(1));
 document.querySelector('.media-toolbar .stepper')?.addEventListener('wheel',e=>{
   e.preventDefault();
@@ -2044,11 +3420,11 @@ $('#uploadButton').addEventListener('click',()=>{pickerSlot=0;$('#fileInput').cl
 $('#fileInput').addEventListener('change',e=>{loadFiles(e.target.files);e.target.value=''});
 stage.addEventListener('dragover',e=>{if(e.dataTransfer.types.includes('Files')){e.preventDefault();stage.classList.add('file-dragging')}});
 stage.addEventListener('dragleave',e=>{if(!stage.contains(e.relatedTarget))stage.classList.remove('file-dragging')});
-stage.addEventListener('drop',e=>{if(!e.dataTransfer.files.length)return;e.preventDefault();stage.classList.remove('file-dragging');loadFiles(e.dataTransfer.files,hitCard(e)?.userData.slot??state.selected)});
+stage.addEventListener('drop',e=>{if(!e.dataTransfer.files.length)return;e.preventDefault();stage.classList.remove('file-dragging');const hit=hitCard(e)?.userData.slot;loadFiles(e.dataTransfer.files,nextPhotoFillSlot(hit??state.selected))});
 renderer.domElement.addEventListener('pointerdown',e=>{
   if(e.button!==0&&e.button!==1)return;
   const mesh=hitCard(e);
-  orbitDrag={x:e.clientX,y:e.clientY,startTilt:state.tilt,startRotation:state.rotation,startTarget:cameraTarget.clone(),moved:false,mesh,mode:e.button===1||e.altKey?'pan':'orbit'};
+  orbitDrag={x:e.clientX,y:e.clientY,startTilt:state.tilt,startRotation:state.rotation,startTarget:cameraTarget.clone(),moved:false,mesh,mode:isPlanarMode()||e.button===1||e.altKey?'pan':'orbit'};
   renderer.domElement.setPointerCapture?.(e.pointerId);
   renderer.domElement.classList.add('orbiting');
 });
@@ -2083,7 +3459,8 @@ renderer.domElement.addEventListener('pointerup',e=>{
   if(!orbitDrag)return;
   const drag=orbitDrag;orbitDrag=null;renderer.domElement.releasePointerCapture?.(e.pointerId);renderer.domElement.classList.remove('orbiting');
   endInteractivePreview();
-  if(!drag.moved&&drag.mode==='orbit'&&drag.mesh){state.selected=drag.mesh.userData.slot;updateSlots()}
+  if(!drag.moved&&(drag.mode==='orbit'||isPlanarMode())&&drag.mesh){state.selected=drag.mesh.userData.slot;updateSlots();scrollSelectedSlotIntoView()}
+  if(drag.moved){commitHistoryCheckpoint();scheduleProjectSave()}
 });
 renderer.domElement.addEventListener('pointercancel',()=>{orbitDrag=null;renderer.domElement.classList.remove('orbiting');endInteractivePreview()});
 renderer.domElement.addEventListener('dblclick',e=>{const mesh=hitCard(e);if(mesh){pickerSlot=mesh.userData.slot;$('#fileInput').click()}});
@@ -2099,33 +3476,158 @@ $('#spacingInput').addEventListener('input',e=>{
 });
 $('#rowCountInput').addEventListener('input',e=>{if(isCurvedMode())setCurvedGrid(Number(e.target.value),state.columns,'rows')});
 $('#columnCountInput').addEventListener('input',e=>{if(isCurvedMode())setCurvedGrid(state.rows,Number(e.target.value),'columns')});
-$('#staggerInput').addEventListener('input',e=>{const value=Math.round(Number(e.target.value));state.stagger=value>0&&value<=5?0:value;$('#staggerInput').value=state.stagger;$('#staggerOutput').textContent=`${state.stagger}%`;if(isCurvedMode())updateTransforms()});
+$('#staggerInput').addEventListener('input',e=>{const value=Math.round(Number(e.target.value));const normalized=value>0&&value<=5?0:value;const key=state.staggerDirection==='vertical'?'staggerVertical':'staggerHorizontal';state[key]=normalized;state.stagger=normalized;$('#staggerInput').value=normalized;$('#staggerOutput').textContent=`${normalized}%`;if(isCurvedMode())updateTransforms();scheduleProjectSave()});
+$('#roomWallStaggerInput').addEventListener('input',e=>{if(state.mode!=='room')return;state.roomWallStagger=THREE.MathUtils.clamp(Math.round(Number(e.target.value)||0),0,40);$('#roomWallStaggerOutput').textContent=`${state.roomWallStagger}%`;updateTransforms();scheduleProjectSave()});
 $('#curvedSpacingInput').addEventListener('input',e=>{if(!isCurvedMode())return;const value=THREE.MathUtils.clamp(Number(e.target.value),0,160);if(state.spacingMode==='row')state.rowGap=value;else if(state.spacingMode==='column')state.columnGap=value;else{state.columnGap=value;state.rowGap=value}syncCurvedControls();updateTransforms();scheduleProjectSave()});
 document.querySelectorAll('[data-curved-spacing-mode]').forEach(button=>button.addEventListener('click',()=>{if(!isCurvedMode())return;const mode=button.dataset.curvedSpacingMode;state.spacingMode=mode==='column'||mode==='row'?mode:'all';if(state.spacingMode==='all')state.rowGap=state.columnGap;syncCurvedControls();updateTransforms();scheduleProjectSave()}));
 // Bending changes the wall shape, but should not silently change the user's
 // viewport scale. Keep the current camera distance while the slider moves;
 // the user can still use Fit to canvas when they want a fresh framing.
 $('#curveBendInput').addEventListener('input',e=>{state.curveBend=Number(e.target.value);$('#curveBendOutput').textContent=`${state.curveBend}°`;if(isCurvedMode())updateTransforms(false,true)});
-document.querySelectorAll('[data-curved-stagger-direction]').forEach(button=>button.addEventListener('click',()=>{if(!isCurvedMode())return;state.staggerDirection=button.dataset.curvedStaggerDirection==='vertical'?'vertical':'horizontal';syncCurvedControls();updateTransforms();scheduleProjectSave()}));
+document.querySelectorAll('[data-curved-stagger-direction]').forEach(button=>button.addEventListener('click',()=>{if(!isCurvedMode())return;const currentKey=state.staggerDirection==='vertical'?'staggerVertical':'staggerHorizontal';state[currentKey]=state.stagger;state.staggerDirection=button.dataset.curvedStaggerDirection==='vertical'?'vertical':'horizontal';state.stagger=staggerValueFor(state);syncCurvedControls();updateTransforms();scheduleProjectSave()}));
 $('#gridRowCountInput').addEventListener('input',e=>{if(!isGridMode())return;normalizeCurvedGrid(Number(e.target.value),state.columns,'rows');syncGridControls();updateTransforms();scheduleProjectSave()});
 $('#gridColumnCountInput').addEventListener('input',e=>{if(!isGridMode())return;normalizeCurvedGrid(state.rows,Number(e.target.value),'columns');syncGridControls();updateTransforms();scheduleProjectSave()});
 $('#gridGapInput').addEventListener('input',e=>{if(!isGridMode())return;const value=THREE.MathUtils.clamp(Number(e.target.value),0,160);if(state.spacingMode==='row')state.rowGap=value;else if(state.spacingMode==='column')state.columnGap=value;else{state.columnGap=value;state.rowGap=value}syncGridControls();updateTransforms();scheduleProjectSave()});
 document.querySelectorAll('[data-grid-spacing-mode]').forEach(button=>button.addEventListener('click',()=>{if(!isGridMode())return;const mode=button.dataset.gridSpacingMode;state.spacingMode=mode==='column'||mode==='row'?mode:'all';if(state.spacingMode==='all')state.rowGap=state.columnGap;syncGridControls();updateTransforms();scheduleProjectSave()}));
 $('#gridStaggerInput').addEventListener('input',e=>{if(!isGridMode())return;state.gridStagger=Number(e.target.value);syncGridControls();updateTransforms();scheduleProjectSave()});
 document.querySelectorAll('[data-grid-direction]').forEach(button=>button.addEventListener('click',()=>{if(!isGridMode())return;state.gridStaggerDirection=button.dataset.gridDirection==='vertical'?'vertical':'horizontal';syncGridControls();updateTransforms();scheduleProjectSave()}));
-function updateSelectedPhotoAdjustment(key,value){
-  const photo=state.photos[state.selected];if(!photo)return;
-  const baseline=key==='imageOffsetY'&&state.mode==='isometric'&&photo.sample?58:0;
-  photo[key]=Number(value)+baseline;syncPhotoAdjustControls();applyCardTextureTransform(cards[state.selected]);render();scheduleProjectSave();
-}
-$('#photoScaleInput').addEventListener('input',e=>updateSelectedPhotoAdjustment('imageScale',Number(e.target.value)/100));
-$('#photoOffsetXInput').addEventListener('input',e=>updateSelectedPhotoAdjustment('imageOffsetX',e.target.value));
-$('#photoOffsetYInput').addEventListener('input',e=>updateSelectedPhotoAdjustment('imageOffsetY',e.target.value));
-$('#resetPhotoAdjust').addEventListener('click',()=>{const photo=state.photos[state.selected];if(!photo)return;photo.imageScale=1;photo.imageOffsetX=0;photo.imageOffsetY=state.mode==='isometric'&&photo.sample?58:0;syncPhotoAdjustControls();applyCardTextureTransform(cards[state.selected]);render();scheduleProjectSave();notify(`已重置槽位 ${state.selected+1} 的图片调整`)});
-$('#closePhotoAdjust').addEventListener('click',()=>{photoAdjustOpen=false;positionPhotoAdjustPanel()});
-document.addEventListener('keydown',event=>{if(event.key!=='Escape')return;if(photoAdjustOpen){event.preventDefault();photoAdjustOpen=false;positionPhotoAdjustPanel()}if(previewQualityMenu?.classList.contains('open')){event.preventDefault();closePreviewQualityMenu()}if(exportDialog){event.preventDefault();closeExportDialog()}if(resolutionPresetMenu?.classList.contains('open')){event.preventDefault();closeResolutionPresetMenu()}});
+photoEditViewport.addEventListener('wheel',event=>{if(!photoEditSession)return;event.preventDefault();const amount=event.deltaY<0?.1:-.1;updatePhotoEditDraft('scaleX',photoEditSession.draft.scaleX+amount);updatePhotoEditDraft('scaleY',photoEditSession.draft.scaleY+amount)},{passive:false});
+photoEditViewport.addEventListener('pointerdown',event=>{if(!photoEditSession)return;const handle=event.target.closest('[data-photo-edit-handle]');const width=Math.max(1,photoEditFrame.clientWidth),height=Math.max(1,photoEditFrame.clientHeight),sx=photoEditSession.draft.scaleX,sy=photoEditSession.draft.scaleY;const tx=-(Number(photoEditSession.draft.offsetX)||0)/100*(sx-1)*width/2,ty=-(Number(photoEditSession.draft.offsetY)||0)/100*(sy-1)*height/2;photoEditDrag={type:handle?'scale':'move',handle:handle?.dataset.photoEditHandle||'',pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,start:{...photoEditSession.draft},width,height,tx,ty};photoEditViewport.setPointerCapture?.(event.pointerId);event.preventDefault()});
+photoEditViewport.addEventListener('pointermove',event=>{
+  const drag=photoEditDrag;if(!drag||drag.pointerId!==event.pointerId||!photoEditSession)return;
+  const {width,height}=drag,dx=event.clientX-drag.startX,dy=event.clientY-drag.startY;
+  if(drag.type==='move'){
+    const nextX=drag.start.scaleX>1.001?drag.start.offsetX-dx*200/((drag.start.scaleX-1)*width):drag.start.offsetX,nextY=drag.start.scaleY>1.001?drag.start.offsetY-dy*200/((drag.start.scaleY-1)*height):drag.start.offsetY;
+    updatePhotoEditDraft('offsetX',nextX);updatePhotoEditDraft('offsetY',nextY);return;
+  }
+  const handle=drag.handle,hasX=handle.includes('e')||handle.includes('w'),hasY=handle.includes('n')||handle.includes('s'),centerFixed=event.ctrlKey,proportional=event.ctrlKey&&event.shiftKey,scaleMultiplier=centerFixed?2:1;
+  let activeX=hasX,activeY=hasY,nextScaleX=drag.start.scaleX,nextScaleY=drag.start.scaleY;
+  if(proportional){
+    const candidates=[];
+    if(hasX)candidates.push((handle.includes('e')?dx:-dx)/width);
+    if(hasY)candidates.push((handle.includes('s')?dy:-dy)/height);
+    const rawDelta=(candidates.sort((a,b)=>Math.abs(b)-Math.abs(a))[0]||0)*scaleMultiplier;
+    const minFactor=Math.max(1/drag.start.scaleX,1/drag.start.scaleY),maxFactor=Math.min(3/drag.start.scaleX,3/drag.start.scaleY),factor=THREE.MathUtils.clamp(1+rawDelta,minFactor,maxFactor);
+    nextScaleX=drag.start.scaleX*factor;nextScaleY=drag.start.scaleY*factor;activeX=true;activeY=true;
+  }else{
+    nextScaleX=hasX?drag.start.scaleX+dx/width*(handle.includes('w')?-1:1)*scaleMultiplier:drag.start.scaleX;
+    nextScaleY=hasY?drag.start.scaleY+dy/height*(handle.includes('n')?-1:1)*scaleMultiplier:drag.start.scaleY;
+  }
+  const clampedX=THREE.MathUtils.clamp(nextScaleX,1,3),clampedY=THREE.MathUtils.clamp(nextScaleY,1,3),widthDelta=width*(clampedX-drag.start.scaleX),heightDelta=height*(clampedY-drag.start.scaleY),centerShiftX=centerFixed?0:(hasX?(handle.includes('e')?1:-1)*widthDelta/2:0),centerShiftY=centerFixed?0:(hasY?(handle.includes('s')?1:-1)*heightDelta/2:0),tx=drag.tx+centerShiftX,ty=drag.ty+centerShiftY,offsetX=clampedX>1.001?-tx*200/((clampedX-1)*width):drag.start.offsetX,offsetY=clampedY>1.001?-ty*200/((clampedY-1)*height):drag.start.offsetY;
+  updatePhotoEditDraft('scaleX',clampedX);updatePhotoEditDraft('scaleY',clampedY);if(activeX)updatePhotoEditDraft('offsetX',offsetX);if(activeY)updatePhotoEditDraft('offsetY',offsetY);
+});
+const finishPhotoEditPointer=event=>{if(photoEditDrag?.pointerId===event.pointerId){photoEditViewport.releasePointerCapture?.(event.pointerId);photoEditDrag=null}};photoEditViewport.addEventListener('pointerup',finishPhotoEditPointer);photoEditViewport.addEventListener('pointercancel',finishPhotoEditPointer);
+const photoEditInputMap={photoEditScaleXInput:'scaleX',photoEditScaleYInput:'scaleY',photoEditOffsetXInput:'offsetX',photoEditOffsetYInput:'offsetY'};Object.entries(photoEditInputMap).forEach(([id,key])=>$(`#${id}`).addEventListener('input',event=>updatePhotoEditDraft(key,key.startsWith('scale')?Number(event.target.value)/100:Number(event.target.value))));
+$('#resetPhotoEdit').addEventListener('click',()=>{if(photoEditSession){photoEditSession.draft={scaleX:1,scaleY:1,offsetX:0,offsetY:0};writePhotoEditDraft()}});$('#applyPhotoEdit').addEventListener('click',()=>closePhotoEdit(true));$('#cancelPhotoEdit').addEventListener('click',cancelPhotoEdit);$('#closePhotoEdit').addEventListener('click',cancelPhotoEdit);photoEditModal.addEventListener('click',event=>{if(event.target.closest('[data-photo-edit-cancel]'))cancelPhotoEdit()});window.addEventListener('resize',()=>{if(photoEditSession)syncPhotoEditGeometry()});
+document.addEventListener('keydown',event=>{if(photoEditSession&&event.key==='Enter'){event.preventDefault();closePhotoEdit(true);return}if(event.key!=='Escape')return;if(photoEditSession){event.preventDefault();closePhotoEdit(true);return}if(previewQualityMenu?.classList.contains('open')){event.preventDefault();closePreviewQualityMenu()}if(exportDialog){event.preventDefault();closeExportDialog()}if(resolutionPresetMenu?.classList.contains('open')){event.preventDefault();closeResolutionPresetMenu()}if(timelineDurationMenu?.classList.contains('open')){event.preventDefault();closeTimelineDurationMenu()}});
+document.addEventListener('keydown',event=>{
+  if((event.metaKey||event.ctrlKey)&&!event.altKey&&!event.shiftKey&&event.key.toLowerCase()==='z'){
+    const target=event.target;
+    if(!(target instanceof HTMLInputElement||target instanceof HTMLTextAreaElement||target instanceof HTMLSelectElement||target?.isContentEditable)){event.preventDefault();undoHistory()}
+    return;
+  }
+  if((event.metaKey||event.ctrlKey)&&((event.shiftKey&&event.key.toLowerCase()==='z')||event.key.toLowerCase()==='y')){
+    const target=event.target;
+    if(!(target instanceof HTMLInputElement||target instanceof HTMLTextAreaElement||target instanceof HTMLSelectElement||target?.isContentEditable)){event.preventDefault();redoHistory()}
+    return;
+  }
+  if(event.code!=='Space'||event.repeat)return;
+  const target=event.target;
+  if(target instanceof HTMLInputElement||target instanceof HTMLTextAreaElement||target instanceof HTMLSelectElement||target?.isContentEditable)return;
+  event.preventDefault();
+  if(state.mode==='bloom')setBloomAnimationPlaying(!bloomAnimation.playing);
+  else setAnimationTimelinePlaying(!animationTimeline.playing);
+});
 $('#cornerInput').addEventListener('input',e=>{state.corner=Number(e.target.value);$('#cornerOutput').textContent=`${state.corner} px`;for(const card of cards)if(card)card.cornerUniform.value=state.corner/DESIGN_SCALE;updateDecorativeTransforms();render()});
-$('#contentRotationInput').addEventListener('input',e=>{state.contentRotation=Number(e.target.value);$('#contentRotationOutput').textContent=`${state.contentRotation}°`;updateTransforms()});
+$('#contentRotationInput').addEventListener('input',e=>{
+  state.contentRotation=Number(e.target.value);
+  if(state.mode==='bloom'&&bloomAnimation.playing)bloomAnimation.angle=THREE.MathUtils.euclideanModulo(state.contentRotation,360);
+  $('#contentRotationOutput').textContent=`${state.contentRotation}°`;
+  updateTransforms();
+  scheduleProjectSave();
+});
+document.addEventListener('click',event=>{
+  const button=event.target.closest?.('[data-bloom-quality]');
+  if(!button)return;
+  bloomAnimation.quality=BLOOM_VIDEO_RESOLUTIONS[button.dataset.bloomQuality]?button.dataset.bloomQuality:'1080p';
+  syncBloomAnimationControls();
+});
+document.addEventListener('input',event=>{
+  const input=event.target;
+  if(input instanceof HTMLInputElement&&input.type==='range'&&input.closest('.settings-section'))upsertAnimationKeyframe(input);
+});
+$('#timelineScrubber')?.addEventListener('input',event=>queueAnimationTimelineTime(internalTimeFromLoopTimeline(event.target.value)));
+const timelineDurationButton=$('#timelineDurationButton'),timelineDurationMenu=$('#timelineDurationMenu');
+const timelineKeyframeToggle=$('#timelineKeyframeToggle');
+timelineKeyframeToggle?.addEventListener('click',event=>{event.stopPropagation();timelineKeyframePanelOpen=!timelineKeyframePanelOpen;syncAnimationTimeline()});
+const timelineKeyframeBody=$('#timelineKeyframeBody');
+let timelineKeyframeDragging=false;
+function setTimelineTimeFromKeyframePanel(event){
+  const ruler=$('#timelineKeyframeRuler');if(!ruler)return;
+  const rect=ruler.getBoundingClientRect(),ratio=THREE.MathUtils.clamp((event.clientX-rect.left)/Math.max(1,rect.width),0,1);
+  queueAnimationTimelineTime(internalTimeFromLoopTimeline(ratio*animationTimeline.loopDuration));
+}
+timelineKeyframeBody?.addEventListener('pointerdown',event=>{
+  if(event.target.closest('.timeline-keyframe-point,.timeline-keyframe-row-delete'))return;
+  event.preventDefault();timelineKeyframeDragging=true;timelineKeyframeBody.setPointerCapture?.(event.pointerId);setTimelineTimeFromKeyframePanel(event);
+});
+timelineKeyframeBody?.addEventListener('pointermove',event=>{if(timelineKeyframeDragging)setTimelineTimeFromKeyframePanel(event)});
+timelineKeyframeBody?.addEventListener('pointerup',event=>{timelineKeyframeDragging=false;timelineKeyframeBody.releasePointerCapture?.(event.pointerId)});
+timelineKeyframeBody?.addEventListener('pointercancel',()=>{timelineKeyframeDragging=false});
+document.addEventListener('keydown',event=>{
+  if(event.key!=='Delete'&&event.key!=='Backspace')return;
+  const active=document.activeElement;if(!active?.matches('.keyframe-anchor,.timeline-keyframe-point'))return;
+  const key=active.matches('.keyframe-anchor')?animationKeyframeKey(active.dataset.anchorInput):active.dataset.keyframeKey;
+  const time=active.matches('.timeline-keyframe-point')?Number(active.dataset.keyframeTime):animationTimeline.currentTime;
+  const removed=removeAnimationKeyframeAtTime(key,time);if(!removed)return;
+  event.preventDefault();notify(uiText('已删除当前参数锚点','Keyframe removed'));syncAnimationTimeline();scheduleProjectSave();
+});
+function closeTimelineDurationMenu(){timelineDurationMenu?.classList.remove('open');timelineDurationButton?.setAttribute('aria-expanded','false')}
+timelineDurationButton?.addEventListener('click',event=>{event.stopPropagation();const open=!timelineDurationMenu.classList.contains('open');timelineDurationMenu.classList.toggle('open',open);timelineDurationButton.setAttribute('aria-expanded',String(open))});
+timelineDurationMenu?.addEventListener('click',event=>{const option=event.target.closest('[data-timeline-duration]');if(!option)return;const loopDuration=THREE.MathUtils.clamp(Number(option.dataset.timelineDuration)||6,MIN_ANIMATION_DURATION,60);animationTimeline.loopDuration=loopDuration;bloomAnimation.duration=animationTimeline.loopDuration;closeTimelineDurationMenu();syncBloomAnimationControls();animationTimeline.currentTime=Math.min(animationTimeline.currentTime,animationTimeline.duration);setAnimationTimelineTime(animationTimeline.currentTime);scheduleProjectSave()});
+$('#loopAnimationToggle')?.addEventListener('click',()=>{
+  if(bloomAnimation.playing)setBloomAnimationPlaying(false);
+  if(animationTimeline.playing)setAnimationTimelinePlaying(false);
+  loopAnimationEnabled=!loopAnimationEnabled;
+  if(loopAnimationEnabled&&bloomAnimation.entranceEnabled)bloomAnimation.entranceMode='overlap';
+  syncBloomAnimationControls();
+  setAnimationTimelineTime(animationTimeline.currentTime);
+  scheduleProjectSave();
+});
+$('#entranceAnimationToggle')?.addEventListener('click',()=>{
+  if(bloomAnimation.playing)setBloomAnimationPlaying(false);
+  if(animationTimeline.playing)setAnimationTimelinePlaying(false);
+  const previousStart=loopTimelineStart();
+  const enabling=!bloomAnimation.entranceEnabled;
+  bloomAnimation.entranceEnabled=enabling;
+  if(enabling&&loopAnimationEnabled)bloomAnimation.entranceMode='overlap';
+  const nextStart=loopTimelineStart();
+  if(nextStart!==previousStart)shiftAnimationKeyframesForEntrance(nextStart-previousStart);
+  if(bloomAnimation.entranceEnabled)animationTimeline.currentTime=0;
+  else animationTimeline.currentTime=Math.max(0,animationTimeline.currentTime-previousStart);
+  syncBloomAnimationControls();setAnimationTimelineTime(animationTimeline.currentTime);scheduleProjectSave();
+});
+document.querySelectorAll('[data-entrance-mode]').forEach(button=>button.addEventListener('click',()=>{
+  const nextMode=button.dataset.entranceMode==='overlap'?'overlap':'beforeLoop';
+  if(nextMode===bloomAnimation.entranceMode)return;
+  const previousStart=loopTimelineStart();
+  bloomAnimation.entranceMode=nextMode;
+  const nextStart=loopTimelineStart(),delta=nextStart-previousStart;
+  if(bloomAnimation.entranceEnabled&&delta)shiftAnimationKeyframesForEntrance(delta);
+  if(bloomAnimation.entranceEnabled&&animationTimeline.currentTime>=animationTimeline.entranceDuration)animationTimeline.currentTime=Math.max(0,animationTimeline.currentTime+delta);
+  syncBloomAnimationControls();setAnimationTimelineTime(animationTimeline.currentTime);scheduleProjectSave();
+}));
+document.querySelectorAll('[data-entrance-preset]').forEach(button=>button.addEventListener('click',()=>{bloomAnimation.entrancePreset=['radial','clockwise','reverse','fadeScale','depth','scatter'].includes(button.dataset.entrancePreset)?button.dataset.entrancePreset:'radial';syncBloomAnimationControls();if(bloomAnimation.entranceEnabled){if(state.mode==='bloom')updateBloomAnimationPose();else applyEntranceAnimationPose();render(false)}scheduleProjectSave()}));
+document.querySelectorAll('[data-entrance-duration]').forEach(button=>button.addEventListener('click',()=>{const previous=animationTimeline.entranceDuration;const next=THREE.MathUtils.clamp(parseFloat(button.dataset.entranceDuration)||2,.5,12);const delta=next-previous,previousStart=loopTimelineStart();if(bloomAnimation.entranceEnabled&&bloomAnimation.entranceMode==='beforeLoop'){shiftAnimationKeyframesForEntrance(delta);if(animationTimeline.currentTime>=previousStart)animationTimeline.currentTime+=delta}animationTimeline.entranceDuration=next;syncBloomAnimationControls();animationTimeline.currentTime=Math.min(animationTimeline.currentTime,animationTimeline.duration);setAnimationTimelineTime(animationTimeline.currentTime);scheduleProjectSave()}));
+$('#entranceTimelineScrubber')?.addEventListener('input',event=>{if(!bloomAnimation.entranceEnabled)return;queueAnimationTimelineTime(event.target.value)});
+$('#timelinePlayButton')?.addEventListener('click',()=>{
+  if(state.mode==='bloom')setBloomAnimationPlaying(!bloomAnimation.playing);
+  else setAnimationTimelinePlaying(!animationTimeline.playing);
+});
+$('#timelineResetButton')?.addEventListener('click',()=>{
+  if(bloomAnimation.playing)setBloomAnimationPlaying(false);
+  animationTimeline.currentTime=0;setAnimationTimelineTime(0);
+});
 document.querySelectorAll('[data-image-direction]').forEach(button=>button.addEventListener('click',()=>{state.imageDirection=button.dataset.imageDirection;for(const card of cards)applyCardTextureTransform(card);updateModeUI();updateTransforms(false);scheduleProjectSave()}));
 $('#backBrightnessInput').addEventListener('input',e=>{state.backBrightness=Number(e.target.value);$('#backBrightnessOutput').textContent=`${state.backBrightness}%`;for(const card of cards)if(card)card.backMaterial.color.setScalar(state.mode==='bloom'?1:state.backBrightness/100);for(const card of decorativeCards)if(card)card.backMaterial.color.setScalar(state.backBrightness/100);render()});
 $('#photoOpacityInput').addEventListener('input',e=>{state.photoOpacity=THREE.MathUtils.clamp(Number(e.target.value),0,100);$('#photoOpacityOutput').textContent=`${state.photoOpacity}%`;syncCardOpacity();render();scheduleProjectSave()});
@@ -2136,6 +3638,7 @@ document.querySelectorAll('[data-camera-axis]').forEach(button=>button.addEventL
 $('#cameraRotationInput').addEventListener('input',e=>{const value=Number(e.target.value);if(state.cameraAxis==='y')state.rotation=value;else state.tilt=value;if(isOrthographicCamera)fitCamera(true);else if(state.cameraAxis==='y')updateTransforms(false);else fitCamera();$('#cameraRotationOutput').textContent=`${Math.round(value)}°`;render();scheduleProjectSave()});
 $('#fovInput').addEventListener('input',e=>{state.fov=THREE.MathUtils.clamp(Number(e.target.value),0,120);setCameraProjection(shouldUseOrthographicCamera());if(!isOrthographicCamera)camera.fov=state.fov;$('#fovInput').value=state.fov;$('#fovOutput').textContent=`${state.fov}°`;fitCamera(true);render();scheduleProjectSave()});
 function resetCurrentEffect(){
+  if(state.mode==='bloom')stopBloomAnimation();
   modeSettings[state.mode]=createModeSettings(state.mode);
   applyModeSettings(state.mode);
   state.cardWidth=modeSettings[state.mode]?.cardWidth??DEFAULT_CARD_WIDTH;state.cardHeight=modeSettings[state.mode]?.cardHeight??DEFAULT_CARD_HEIGHT;syncCardSizeControls();
@@ -2145,7 +3648,7 @@ function resetCurrentEffect(){
   $('#photoOpacityInput').value=state.photoOpacity;$('#photoOpacityOutput').textContent=`${state.photoOpacity}%`;
   for(const card of cards)if(card)card.backMaterial.color.setScalar(state.mode==='bloom'?1:state.backBrightness/100);
   syncCardOpacity();
-  if(isCurvedMode()){normalizeCurvedGrid(state.rows,state.columns,'rows');syncCurvedControls();updateSlots();updateTransforms()}else if(isGridMode()){normalizeCurvedGrid(state.rows,state.columns,'rows');syncGridControls();updateSlots();updateTransforms()}else syncRingControls();syncViewControls();zoom(state.zoom);updateModeUI();scheduleProjectSave();notify('当前效果已恢复默认参数');
+  if(isConcentricMode())syncConcentricControls();else if(isCurvedMode()){normalizeCurvedGrid(state.rows,state.columns,'rows');syncCurvedControls();updateSlots();updateTransforms()}else if(isGridMode()){normalizeCurvedGrid(state.rows,state.columns,'rows');syncGridControls();updateSlots();updateTransforms()}else syncRingControls();syncViewControls();zoom(state.zoom);updateModeUI();scheduleProjectSave();notify('当前效果已恢复默认参数');
 }
 function confirmResetCurrentEffect(){
   const existing=document.querySelector('.reset-confirm-backdrop');
@@ -2163,9 +3666,9 @@ function confirmResetCurrentEffect(){
 }
 $('#resetButton').addEventListener('click',confirmResetCurrentEffect);
 tiltGizmoReset?.addEventListener('click',confirmResetCurrentEffect);
-function zoom(value){state.zoom=Math.round(Math.max(40,Math.min(800,Number(value)||40))/10)*10;$('#zoomLabel').textContent=`${state.zoom}%`;$('#viewZoomInput').value=state.zoom;$('#viewZoomOutput').textContent=`${state.zoom}%`;fitCamera(true);render()}
+function zoom(value,formatLabel=true){state.zoom=Math.round(Math.max(40,Math.min(800,Number(value)||40)));if(formatLabel)$('#zoomLabel').textContent=`${state.zoom}%`;$('#viewZoomInput').value=state.zoom;$('#viewZoomOutput').textContent=`${state.zoom}%`;fitCamera(true);render()}
 function interactiveZoom(value){beginInteractivePreview();zoom(value);endInteractivePreview()}
-$('#zoomInButton').addEventListener('click',()=>interactiveZoom(state.zoom+10));$('#zoomOutButton').addEventListener('click',()=>interactiveZoom(state.zoom-10));$('#fitButton').addEventListener('click',()=>{beginInteractivePreview();cameraTarget.set(0,0,0);syncPanControls();zoom(100);fitCamera(true);render();endInteractivePreview()});
+$('#zoomInButton').addEventListener('click',()=>{interactiveZoom(state.zoom+10);scheduleHistoryGestureCommit()});$('#zoomOutButton').addEventListener('click',()=>{interactiveZoom(state.zoom-10);scheduleHistoryGestureCommit()});$('#fitButton').addEventListener('click',()=>{beginInteractivePreview();if(isConcentricMode())state.concentricFitRadius=concentricPoses().circles.at(-1).radius;cameraTarget.set(0,0,0);syncPanControls();zoom(100);fitCamera(true);render();endInteractivePreview();commitHistoryCheckpoint();scheduleProjectSave()});
 const previewQualityControl=$('#previewQualityControl'),previewQualityTrigger=$('#previewQualityTrigger'),previewQualityMenu=$('#previewQualityMenu');
 function closePreviewQualityMenu(){previewQualityMenu?.classList.remove('open');previewQualityTrigger?.setAttribute('aria-expanded','false')}
 previewQualityTrigger?.addEventListener('click',event=>{event.stopPropagation();const open=!previewQualityMenu.classList.contains('open');previewQualityMenu.classList.toggle('open',open);previewQualityTrigger.setAttribute('aria-expanded',String(open))});
@@ -2173,33 +3676,87 @@ previewQualityMenu?.addEventListener('click',event=>{const option=event.target.c
 syncPreviewQualityControl();
 const exportControl=$('#exportControl'),exportTrigger=$('#exportButton');
 let exportDialog=null;
-function closeExportDialog(){if(!exportDialog)return;document.removeEventListener('keydown',exportDialog.onKeydown);exportDialog.backdrop.remove();exportDialog=null;exportTrigger?.setAttribute('aria-expanded','false')}
+let exportProgress=null;
+let exportCancelRequested=false;
+function openExportProgress(totalFrames,title){
+  closeExportProgress();
+  exportCancelRequested=false;
+  const backdrop=document.createElement('div');
+  backdrop.className='reset-confirm-backdrop export-progress-backdrop';
+  backdrop.innerHTML=`<div class="reset-confirm-dialog export-progress-dialog" role="dialog" aria-modal="true" aria-labelledby="exportProgressTitle"><h3 id="exportProgressTitle">${title}</h3><p data-export-progress-message>${uiText('正在准备导出…','Preparing export…')}</p><div class="export-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div class="export-progress-fill"></div></div><div class="export-progress-meta"><output data-export-progress-percent>0%</output><span data-export-progress-frames>0 / ${totalFrames} ${uiText('帧','frames')}</span></div><div class="reset-confirm-actions"><button type="button" data-export-progress-cancel>${uiText('取消导出','Cancel export')}</button></div></div>`;
+  const cancel=backdrop.querySelector('[data-export-progress-cancel]');
+  const onKeydown=event=>{if(event.key==='Escape'){event.preventDefault();requestExportCancel()}};
+  exportProgress={backdrop,totalFrames,fill:backdrop.querySelector('.export-progress-fill'),track:backdrop.querySelector('.export-progress-track'),percent:backdrop.querySelector('[data-export-progress-percent]'),frames:backdrop.querySelector('[data-export-progress-frames]'),message:backdrop.querySelector('[data-export-progress-message]'),cancel,onKeydown};
+  cancel.addEventListener('click',requestExportCancel);
+  backdrop.addEventListener('click',event=>{if(event.target===backdrop)requestExportCancel()});
+  document.body.appendChild(backdrop);
+  document.addEventListener('keydown',onKeydown);
+  cancel.focus();
+}
+function requestExportCancel(){
+  exportCancelRequested=true;
+  if(!exportProgress)return;
+  exportProgress.cancel.disabled=true;
+  exportProgress.cancel.textContent=uiText('正在取消…','Cancelling…');
+  exportProgress.message.textContent=uiText('正在停止编码，请稍候…','Stopping the encoder…');
+}
+function updateExportProgress(frame,total,message){
+  if(!exportProgress)return;
+  const safeTotal=Math.max(1,total||exportProgress.totalFrames||1),safeFrame=Math.max(0,Math.min(safeTotal,frame||0)),percent=Math.round(safeFrame/safeTotal*100);
+  exportProgress.fill.style.width=`${percent}%`;
+  exportProgress.track.setAttribute('aria-valuenow',String(percent));
+  exportProgress.percent.textContent=`${percent}%`;
+  exportProgress.frames.textContent=`${safeFrame} / ${safeTotal} ${uiText('帧','frames')}`;
+  if(message)exportProgress.message.textContent=message;
+}
+function closeExportProgress(success=false){
+  if(!exportProgress)return;
+  const current=exportProgress;exportProgress=null;
+  document.removeEventListener('keydown',current.onKeydown);
+  if(success){
+    current.fill.style.width='100%';current.track.setAttribute('aria-valuenow','100');current.percent.textContent='100%';current.frames.textContent=uiText('导出完成','Export complete');current.message.textContent=uiText('文件已开始下载。','The file download has started.');
+    setTimeout(()=>current.backdrop.remove(),900);
+  }else current.backdrop.remove();
+}
+function checkExportCancelled(){
+  if(exportCancelRequested){const error=new Error('Export cancelled');error.name='ExportCancelled';throw error}
+}
+function closeExportDialog(){
+  if(!exportDialog)return;
+  document.removeEventListener('keydown',exportDialog.onKeydown);
+  exportDialog.backdrop.remove();
+  exportDialog=null;
+  exportTrigger?.setAttribute('aria-expanded','false')
+}
 function openExportDialog(){
   if(exportDialog){closeExportDialog();return}
   const backdrop=document.createElement('div');backdrop.className='reset-confirm-backdrop export-confirm-backdrop';
   const defaultPreset=['2K','4K','8K'].includes(state.resolutionPreset)?state.resolutionPreset:'2K';
-  backdrop.innerHTML=`<div class="reset-confirm-dialog export-dialog" role="dialog" aria-modal="true" aria-labelledby="exportDialogTitle"><h3 id="exportDialogTitle">导出图片</h3><p>选择文件格式和输出尺寸。</p><div class="export-choice"><span>格式</span><div class="export-choice-grid"><button type="button" class="selected" data-export-format="png" aria-pressed="true">PNG</button><button type="button" data-export-format="jpeg" aria-pressed="false">JPEG</button></div></div><div class="export-choice"><span>尺寸</span><div class="export-choice-grid export-size-grid"><button type="button" data-export-resolution="2K" aria-pressed="${defaultPreset==='2K'}">2K<small>1920 px</small></button><button type="button" data-export-resolution="4K" aria-pressed="${defaultPreset==='4K'}">4K<small>3840 px</small></button><button type="button" data-export-resolution="8K" aria-pressed="${defaultPreset==='8K'}">8K<small>7680 px</small></button></div></div><div class="reset-confirm-actions"><button type="button" data-export-cancel>取消</button><button type="button" class="primary" data-export-confirm>导出</button></div></div>`;
+  backdrop.innerHTML=`<div class="reset-confirm-dialog export-dialog" role="dialog" aria-modal="true" aria-labelledby="exportDialogTitle"><h3 id="exportDialogTitle">导出</h3><p>选择文件格式和输出尺寸。</p><div class="export-choice"><span>格式</span><div class="export-choice-grid"><button type="button" class="selected" data-export-format="png" aria-pressed="true">PNG</button><button type="button" data-export-format="jpeg" aria-pressed="false">JPEG</button><button type="button" data-export-format="webm" aria-pressed="false">WebM 视频</button><button type="button" data-export-format="mp4" aria-pressed="false">MP4 视频</button></div></div><div class="export-choice export-size-choice"><span>尺寸</span><div class="export-choice-grid export-size-grid"><button type="button" data-export-resolution="2K" aria-pressed="${defaultPreset==='2K'}">2K<small>1920 px</small></button><button type="button" data-export-resolution="4K" aria-pressed="${defaultPreset==='4K'}">4K<small>3840 px</small></button><button type="button" data-export-resolution="8K" aria-pressed="${defaultPreset==='8K'}">8K<small>7680 px</small></button></div></div><div id="exportVideoSettings" class="mode-hidden"><div class="grid-choice-control bloom-video-quality"><span>视频清晰度</span><div class="grid-choice" role="group" aria-label="视频清晰度"><button type="button" data-bloom-quality="720p" aria-pressed="false">720p</button><button type="button" data-bloom-quality="1080p" aria-pressed="true">1080p</button><button type="button" data-bloom-quality="2K" aria-pressed="false">2K</button><button type="button" data-bloom-quality="4K" aria-pressed="false">4K</button><button type="button" data-bloom-quality="8K" aria-pressed="false">8K</button></div></div><div class="grid-choice-control bloom-video-fps"><span>导出帧率</span><div class="grid-choice" role="group" aria-label="导出帧率"><button type="button" data-bloom-fps="24" aria-pressed="${bloomAnimation.fps===24}">24 fps</button><button type="button" data-bloom-fps="30" aria-pressed="${bloomAnimation.fps===30}">30 fps</button><button type="button" data-bloom-fps="60" aria-pressed="${bloomAnimation.fps===60}">60 fps</button></div></div><div class="export-timeline-note">视频将按时间轴导出：<output id="exportTimelineDuration">${formatUiNumber(selectedAnimationDuration(),1)} 秒</output></div></div><div class="reset-confirm-actions"><button type="button" data-export-cancel>取消</button><button type="button" class="primary" data-export-confirm>导出</button></div></div>`;
   let format='png',resolution=defaultPreset;
   const setChoice=(selector,attribute,value)=>backdrop.querySelectorAll(selector).forEach(button=>{const selected=button.dataset[attribute]===value;button.classList.toggle('selected',selected);button.setAttribute('aria-pressed',String(selected))});
-  backdrop.querySelectorAll('[data-export-format]').forEach(button=>button.addEventListener('click',()=>{format=button.dataset.exportFormat;setChoice('[data-export-format]','exportFormat',format)}));
+  const sizeChoice=backdrop.querySelector('.export-size-choice');
+  const videoSettingsHost=backdrop.querySelector('#exportVideoSettings');
+  backdrop.querySelectorAll('[data-export-format]').forEach(button=>button.addEventListener('click',()=>{format=button.dataset.exportFormat;setChoice('[data-export-format]','exportFormat',format);const isVideo=format==='webm'||format==='mp4';sizeChoice?.classList.toggle('mode-hidden',isVideo);videoSettingsHost?.classList.toggle('mode-hidden',!isVideo)}));
   backdrop.querySelectorAll('[data-export-resolution]').forEach(button=>button.addEventListener('click',()=>{resolution=button.dataset.exportResolution;setChoice('[data-export-resolution]','exportResolution',resolution)}));
-  const startExport=()=>{state.resolutionPreset=resolution;closeExportDialog();exportImage(format,resolution)};
+  backdrop.querySelectorAll('[data-bloom-fps]').forEach(button=>button.addEventListener('click',()=>{bloomAnimation.fps=THREE.MathUtils.clamp(Number(button.dataset.bloomFps)||30,15,60);setChoice('[data-bloom-fps]','bloomFps',String(bloomAnimation.fps));syncBloomAnimationControls()}));
+  const startExport=()=>{closeExportDialog();if(format==='webm'||format==='mp4'){exportBloomAnimation(format);return}state.resolutionPreset=resolution;exportImage(format,resolution)};
   const onKeydown=event=>{if(event.key==='Escape'){event.preventDefault();closeExportDialog()}else if(event.key==='Enter'){event.preventDefault();startExport()}};
   exportDialog={backdrop,onKeydown};
   backdrop.addEventListener('click',event=>{if(event.target===backdrop)closeExportDialog()});
   backdrop.querySelector('[data-export-cancel]').addEventListener('click',closeExportDialog);
   backdrop.querySelector('[data-export-confirm]').addEventListener('click',startExport);
-  document.body.appendChild(backdrop);setTimeout(()=>applyLanguage(currentLanguage),0);document.addEventListener('keydown',onKeydown);exportTrigger?.setAttribute('aria-expanded','true');backdrop.querySelector('[data-export-format]').focus();
+  document.body.appendChild(backdrop);syncBloomAnimationControls();setTimeout(()=>applyLanguage(currentLanguage),0);document.addEventListener('keydown',onKeydown);exportTrigger?.setAttribute('aria-expanded','true');backdrop.querySelector('[data-export-format]').focus();
 }
 exportTrigger?.addEventListener('click',event=>{event.stopPropagation();openExportDialog()});
-$('#zoomLabel').addEventListener('input',e=>{const value=Number(String(e.target.textContent).replace(/[^0-9.-]/g,''));if(!Number.isFinite(value)||value<40||value>800)return;beginInteractivePreview();zoom(value);endInteractivePreview()});
-$('#zoomLabel').addEventListener('blur',e=>{const value=Number(String(e.target.textContent).replace(/[^0-9.-]/g,''));zoom(Number.isFinite(value)?value:state.zoom)});
-$('#zoomLabel').addEventListener('wheel',e=>{e.preventDefault();beginInteractivePreview();zoom(state.zoom+(e.deltaY<0?20:-20));endInteractivePreview()},{passive:false});
+$('#zoomLabel').addEventListener('input',e=>{const value=Number(String(e.target.textContent).replace(/[^0-9.-]/g,''));if(!Number.isFinite(value)||value<40||value>800)return;beginInteractivePreview();zoom(value,false);endInteractivePreview();scheduleHistoryGestureCommit()});
+$('#zoomLabel').addEventListener('blur',e=>{const value=Number(String(e.target.textContent).replace(/[^0-9.-]/g,''));zoom(Number.isFinite(value)?value:state.zoom);commitHistoryCheckpoint();scheduleProjectSave()});
+$('#zoomLabel').addEventListener('wheel',e=>{e.preventDefault();beginInteractivePreview();zoom(state.zoom+(e.deltaY<0?10:-10));endInteractivePreview();scheduleHistoryGestureCommit()},{passive:false});
 $('#zoomLabel').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();e.currentTarget.blur()}});
-$('#viewZoomInput').addEventListener('input',e=>{beginInteractivePreview();zoom(Number(e.target.value));endInteractivePreview()});
-$('#viewOffsetXInput').addEventListener('input',e=>{state.viewOffsetX=Number(e.target.value);cameraTarget.x=state.viewOffsetX/DESIGN_SCALE;syncPanControls();updateCameraOrbit();render()});
-$('#viewOffsetYInput').addEventListener('input',e=>{state.viewOffsetY=Number(e.target.value);cameraTarget.y=state.viewOffsetY/DESIGN_SCALE;syncPanControls();updateCameraOrbit();render()});
-renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();beginInteractivePreview();zoom(state.zoom+(e.deltaY<0?20:-20));endInteractivePreview()},{passive:false});
+$('#viewZoomInput').addEventListener('input',e=>{beginInteractivePreview();zoom(Number(e.target.value));endInteractivePreview();scheduleHistoryGestureCommit()});
+$('#viewOffsetXInput').addEventListener('input',e=>{state.viewOffsetX=Number(e.target.value);cameraTarget.x=state.viewOffsetX/DESIGN_SCALE;syncPanControls();updateCameraOrbit();render();scheduleHistoryGestureCommit()});
+$('#viewOffsetYInput').addEventListener('input',e=>{state.viewOffsetY=Number(e.target.value);cameraTarget.y=state.viewOffsetY/DESIGN_SCALE;syncPanControls();updateCameraOrbit();render();scheduleHistoryGestureCommit()});
+renderer.domElement.addEventListener('wheel',e=>{e.preventDefault();beginInteractivePreview();zoom(state.zoom+(e.deltaY<0?10:-10));endInteractivePreview();scheduleHistoryGestureCommit()},{passive:false});
 const settingsControl=$('#settingsControl'),settingsMenu=$('#settingsMenu'),themeButton=$('#themeButton'),brandSettingsTrigger=$('#brandSettingsTrigger');
 let settingsMenuBackdrop=null;
 const BRAND_NOTICE_KEY='photo-wall-brand-notice-v1';
@@ -2210,8 +3767,16 @@ const toggleSettingsMenu=event=>{event.preventDefault();event.stopPropagation();
 $('#closeSettingsMenu')?.addEventListener('click',closeSettingsMenu);
 document.querySelectorAll('[data-theme-choice]').forEach(button=>button.addEventListener('click',()=>{document.body.classList.toggle('light-theme',button.dataset.themeChoice==='light');localStorage.setItem('photo-wall-theme',button.dataset.themeChoice);document.querySelectorAll('[data-theme-choice]').forEach(item=>item.classList.toggle('active',item===button))}));const LANGUAGE_KEY='photo-wall-language-v1';
 const LANGUAGE_TEXT={
-  '图片墙':'Photo Wall','点击 Logo 查看设置与赞赏':'Click the logo to view settings and support','项目':'Projects','导出':'Export','主题':'Theme','暗夜模式':'Dark mode','白天模式':'Light mode','语言':'Language','中文':'Chinese','作者介绍':'About the author','赞赏二维码':'Support the author','小红书主页':'Xiaohongshu','邦邦PPT':'Bangbang PPT','图片':'Photos','槽位数量':'Slot count','读取本地图片':'Read local images','上传背景图片':'Upload background image','背景颜色':'Background color','自定义比例':'Custom ratio','适合画布':'Fit canvas','原图':'Original','标准':'Standard','重置':'Reset','图片调整':'Adjust image','替换图片':'Replace image','调整图片':'Adjust image','清空所有图片':'Clear all images','支持多选 · JPG、PNG、WebP':'Multiple files · JPG, PNG, WebP','支持 JPG、PNG、WebP':'JPG, PNG, WebP','环绕弯曲':'Ring curve','环形绽放':'Bloom ring','上下弧形墙':'Vertical curve wall','单侧弯曲':'Single-side bend','固定边缘':'Fixed edge','装饰弯曲墙':'Decorative curve wall','关闭':'Off','开启':'On','装饰透明度':'Decorative opacity','装饰弯曲':'Decorative bend','图片朝向':'Image orientation','左侧':'Left','右侧':'Right','上侧':'Top','下侧':'Bottom','上':'Up','下':'Down','左':'Left','左右弧形墙':'Horizontal curve wall','倾斜网格墙':'Tilted grid wall','等距45度':'Isometric 45°','网格':'Grid','3D透视':'3D perspective','显示三轴辅助线':'Show axis guides','隐藏三轴辅助线':'Hide axis guides','预览精度':'Preview quality','预览精度选项':'Preview quality options','视口缩放百分比':'Viewport zoom','左键拖动':'Drag with left button','360度查看':'360° view','平移视角':'Pan view','滚轮':'Scroll wheel','缩放照片':'Zoom photo','双击':'Double-click','选中并替换':'Select and replace','应用图片比例到自定义比例':'Apply image ratio','清除背景图片':'Clear background image','比例宽':'Ratio width','比例高':'Ratio height','行数':'Rows','每行数量':'Items / row','间距方式':'Gap mode','间距':'Gap','列间距':'Columns','行间距':'Rows','错位方向':'Stagger axis','横向':'Horizontal','竖向':'Vertical','错位程度':'Stagger','卡片圆角':'Corner radius','图片旋转':'Image rotation','反面亮度':'Back brightness','图片透明度':'Image opacity','倾斜轴':'Tilt axis','整体倾斜':'Wall tilt','相机旋转轴':'Camera axis','相机X轴旋转':'Camera X rotation','透视角度':'Perspective angle','视角水平偏移（X）':'Horizontal view offset (X)','视角垂直偏移（Y）':'Vertical view offset (Y)','照片预设':'Photo presets','预设名称':'Preset name','保存':'Save','恢复':'Restore','删除':'Delete','还没有保存的预设':'No saved presets','点击选择图片':'Click to select image','点击添加或替换图片':'Click to add or replace image','关闭':'Close','重置':'Reset','项目名称':'Project name','新项目名称':'New project name','新建':'Create','还没有项目':'No projects','清空所有图片':'Clear all images','本地图片保存在当前浏览器，不会上传':'Images stay in this browser and are not uploaded','设置':'Settings','图片宽度':'Image width','图片高度':'Image height','整体弯曲':'Overall curve','图片间距':'Image spacing','图片槽位':'Image slots','行间距':'Rows','列间距':'Columns','卡片圆角':'Card corner radius','反面亮度':'Back brightness','图片透明度':'Image opacity','整体倾斜':'Overall tilt','相机旋转轴':'Camera rotation axis','相机X轴旋转':'Camera X-axis rotation','视口缩放':'Viewport zoom','视角水平偏移（X）':'Horizontal view offset (X)','视角垂直偏移（Y）':'Vertical view offset (Y)','照片预设':'Photo presets','仅保存照片墙参数':'Saves photo wall parameters only','环形半径':'Ring radius','图片缩放':'Scale','水平位置':'X position','垂直位置':'Y position','图片生成失败':'Image generation failed','导出图片':'Export image','选择文件格式和输出尺寸。':'Choose a format and output size.','格式':'Format','尺寸':'Size','取消':'Cancel','确认重置':'Confirm reset','恢复默认参数？':'Restore default settings?','当前效果的参数将恢复默认，照片槽位和图片不会改变。':'Current effect settings will be restored. Photo slots and images will stay unchanged.','确认':'Confirm','导出中':'Exporting','实时预览':'Live preview','松开鼠标，将图片添加到照片墙':'Release to add images to the photo wall','未命名项目':'Untitled project','默认项目':'Default project','项目图片读取失败，请重新打开项目':'Could not load project images. Please reopen the project','ⓘ 本地图片保存在当前浏览器，不会上传':'ⓘ Images stay in this browser and are not uploaded','小红书主页二维码':'Xiaohongshu QR code','赞赏二维码':'Support QR code','重置当前效果':'Reset current effect','清空所有图片':'Clear all images','替换图片':'Replace image','点击添加或替换图片':'Click to add or replace image','预览精度':'Preview quality','应用图片比例到自定义比例':'Apply image ratio to custom ratio','清除背景图片':'Clear background image','控制相邻行或列的错位程度；接近 0% 时自动吸附到边缘对齐':'Controls the stagger between adjacent rows or columns; near 0% aligns to the edges','正值向前凸，负值向后凹；右键循环切换角度档位':'Positive values curve forward, negative values curve backward; right-click to cycle presets','360度查看 ·':'360° view ·','平移视角 ·':'Pan view ·','缩放照片 ·':'Zoom photo ·','Alt + 左键':'Alt + left button','ⓘ 本地图片保存在当前浏览器，不会上传':'ⓘ Images stay in this browser and are not uploaded','点击输入数值，滚轮微调':'Click to enter a value; scroll to adjust','右键循环切换角度档位':'Right-click to cycle angle presets','示例图片':'Sample image'
+  '图片墙':'Photo Wall','点击 Logo 查看设置与赞赏':'Click the logo to view settings and support','项目':'Projects','导出':'Export','主题':'Theme','暗夜模式':'Dark mode','白天模式':'Light mode','语言':'Language','中文':'Chinese','作者介绍':'About the author','赞赏二维码':'Support the author','小红书主页':'Xiaohongshu','邦邦PPT':'Bangbang PPT','图片':'Photos','槽位数量':'Slot count','读取本地图片':'Read local images','上传背景图片':'Upload background image','背景颜色':'Background color','自定义比例':'Custom ratio','适合画布':'Fit canvas','原图':'Original','标准':'Standard','重置':'Reset','应用':'Apply','图片调整':'Adjust image','画布比例':'Canvas ratio','拖动画布移动图片 · 拖动边缘锚点缩放 · 滚轮缩放 · Ctrl 居中 · Ctrl+Shift 等比例':'Drag to move · drag handles to scale · scroll to zoom · Ctrl center · Ctrl+Shift proportional','图片编辑画布':'Image editing canvas','替换图片':'Replace image','调整图片':'Adjust image','清空所有图片':'Clear all images','支持多选 · JPG、PNG、WebP':'Multiple files · JPG, PNG, WebP','支持 JPG、PNG、WebP':'JPG, PNG, WebP','环绕弯曲':'Ring curve','环形绽放':'Bloom ring','上下弧形墙':'Vertical curve wall','单侧弯曲':'Single-side bend','固定边缘':'Fixed edge','装饰弯曲墙':'Decorative curve wall','关闭':'Off','开启':'On','装饰透明度':'Decorative opacity','装饰弯曲':'Decorative bend','图片朝向':'Image orientation','左侧':'Left','右侧':'Right','上侧':'Top','下侧':'Bottom','上':'Up','下':'Down','左':'Left','左右弧形墙':'Horizontal curve wall','倾斜网格墙':'Tilted grid wall','等距45度':'Isometric 45°','规整网格墙':'Regular grid wall','基础尺寸':'Base size','自由网格墙':'Free grid','排布方式':'Layout','中心聚合':'Center cluster','图片比例':'Photo ratio','保留原图':'Original ratio','统一裁切':'Uniform crop','统一间距':'Uniform gap','边缘起伏':'Edge variation','分组数量':'Group count','换一版排列':'Shuffle layout','网格':'Grid','3D透视':'3D perspective','显示三轴辅助线':'Show axis guides','隐藏三轴辅助线':'Hide axis guides','预览精度':'Preview quality','预览精度选项':'Preview quality options','视口缩放百分比':'Viewport zoom','左键拖动':'Drag with left button','360度查看':'360° view','平移视角':'Pan view','滚轮':'Scroll wheel','缩放照片':'Zoom photo','双击':'Double-click','选中并替换':'Select and replace','应用图片比例到自定义比例':'Apply image ratio','清除背景图片':'Clear background image','比例宽':'Ratio width','比例高':'Ratio height','行数':'Rows','每行数量':'Items / row','间距方式':'Gap mode','间距':'Gap','列间距':'Columns','行间距':'Rows','错位方向':'Stagger axis','横向':'Horizontal','竖向':'Vertical','错位程度':'Stagger','卡片圆角':'Corner radius','图片旋转':'Image rotation','反面亮度':'Back brightness','图片透明度':'Image opacity','倾斜轴':'Tilt axis','整体倾斜':'Wall tilt','相机旋转轴':'Camera axis','相机X轴旋转':'Camera X rotation','透视角度':'Perspective angle','视角水平偏移（X）':'Horizontal view offset (X)','视角垂直偏移（Y）':'Vertical view offset (Y)','照片预设':'Photo presets','预设名称':'Preset name','保存':'Save','恢复':'Restore','删除':'Delete','还没有保存的预设':'No saved presets','点击选择图片':'Click to select image','点击添加或替换图片':'Click to add or replace image','关闭':'Close','重置':'Reset','项目名称':'Project name','新项目名称':'New project name','新建':'Create','还没有项目':'No projects','清空所有图片':'Clear all images','本地图片保存在当前浏览器，不会上传':'Images stay in this browser and are not uploaded','设置':'Settings','图片宽度':'Image width','图片高度':'Image height','整体弯曲':'Overall curve','图片间距':'Image spacing','图片槽位':'Image slots','行间距':'Rows','列间距':'Columns','卡片圆角':'Card corner radius','反面亮度':'Back brightness','图片透明度':'Image opacity','整体倾斜':'Overall tilt','相机旋转轴':'Camera rotation axis','相机X轴旋转':'Camera X-axis rotation','视口缩放':'Viewport zoom','视角水平偏移（X）':'Horizontal view offset (X)','视角垂直偏移（Y）':'Vertical view offset (Y)','照片预设':'Photo presets','仅保存照片墙参数':'Saves photo wall parameters only','环形半径':'Ring radius','图片缩放':'Scale','水平位置':'X position','垂直位置':'Y position','图片生成失败':'Image generation failed','导出图片':'Export image','选择文件格式和输出尺寸。':'Choose a format and output size.','格式':'Format','尺寸':'Size','取消':'Cancel','确认重置':'Confirm reset','恢复默认参数？':'Restore default settings?','当前效果的参数将恢复默认，照片槽位和图片不会改变。':'Current effect settings will be restored. Photo slots and images will stay unchanged.','确认':'Confirm','导出中':'Exporting','实时预览':'Live preview','松开鼠标，将图片添加到照片墙':'Release to add images to the photo wall','未命名项目':'Untitled project','默认项目':'Default project','项目图片读取失败，请重新打开项目':'Could not load project images. Please reopen the project','ⓘ 本地图片保存在当前浏览器，不会上传':'ⓘ Images stay in this browser and are not uploaded','小红书主页二维码':'Xiaohongshu QR code','赞赏二维码':'Support QR code','重置当前效果':'Reset current effect','清空所有图片':'Clear all images','替换图片':'Replace image','点击添加或替换图片':'Click to add or replace image','预览精度':'Preview quality','应用图片比例到自定义比例':'Apply image ratio to custom ratio','清除背景图片':'Clear background image','控制相邻行或列的错位程度；接近 0% 时自动吸附到边缘对齐':'Controls the stagger between adjacent rows or columns; near 0% aligns to the edges','正值向前凸，负值向后凹；右键循环切换角度档位':'Positive values curve forward, negative values curve backward; right-click to cycle presets','360度查看 ·':'360° view ·','平移视角 ·':'Pan view ·','缩放照片 ·':'Zoom photo ·','Alt + 左键':'Alt + left button','ⓘ 本地图片保存在当前浏览器，不会上传':'ⓘ Images stay in this browser and are not uploaded','点击输入数值，滚轮微调':'Click to enter a value; scroll to adjust','右键循环切换角度档位':'Right-click to cycle angle presets','示例图片':'Sample image'
 };
+Object.assign(LANGUAGE_TEXT,{
+  '快速':'Fast','删除此行关键帧':'Delete all keyframes on this track','已删除此行关键帧':'Removed all keyframes from this track','水平缩放':'Horizontal scale','垂直缩放':'Vertical scale',
+  '同心环绕墙':'Concentric ring wall','圈数':'Rings','内圈半径':'Inner radius','外圈半径':'Outer radius','圈间距':'Ring spacing','交替错位':'Alternating stagger',
+  '出现动画时间轴':'Entrance animation timeline','启用出现动画':'Enable entrance animation','出现动画':'Entrance','循环动画':'Loop animation','启用循环动画':'Enable loop animation','停用循环动画':'Disable loop animation','出现动画预设':'Entrance preset','中心展开':'Center out','顺时展开':'Clockwise','由外到内':'Outside in','淡入缩放':'Fade + scale','深度推进':'Depth push','散落归位':'Scatter in','出现动画时长':'Entrance duration','出现动画与循环动画关系':'Entrance and loop timing','循环+出现':'Loop + entrance','先出现':'Entrance first','与循环动画同步':'Sync with loop animation','出现完成后开始循环':'Start loop after entrance',
+  '动画时间轴':'Animation timeline','播放动画':'Play animation','暂停动画':'Pause animation','启用出现动画或添加锚点后播放动画':'Enable entrance or add keyframes to play','动画时间':'Animation time','动画时长':'Animation duration','添加动画锚点':'Add animation keyframe','删除当前时间锚点':'Remove current keyframe','在当前时间添加锚点':'Add keyframe at current time','已移除当前时间锚点':'Removed keyframe','已添加当前时间锚点':'Keyframe added','已删除当前参数锚点':'Keyframe removed','撤销':'Undo','重做':'Redo',
+  '视频清晰度':'Video quality','导出帧率':'Export FPS','WebM 视频':'WebM video','MP4 视频':'MP4 video','视频将按时间轴导出：':'Video follows timeline:','导出中':'Exporting','当前浏览器不支持 WebM 录制':'This browser does not support WebM recording','当前浏览器不支持 MP4/H.264 导出':'This browser does not support MP4/H.264 export','当前浏览器没有可用的 WebM 编码器':'No WebM encoder is available in this browser','动画导出失败，请重试':'Animation export failed. Please try again','导出失败，请重试':'Export failed. Please try again'
+  ,'调整背景图片':'Adjust background image','背景图片调整':'Adjust background image','背景缩放':'Background scale','未选择图片':'No image selected'
+});
 const LANGUAGE_TEXT_ZH=Object.fromEntries(Object.entries(LANGUAGE_TEXT).map(([zh,en])=>[en,zh]));
 function applyLanguage(value){
   const lang=value==='en'?'en':'zh';
@@ -2220,10 +3785,11 @@ function applyLanguage(value){
   document.documentElement.lang=lang==='en'?'en':'zh-CN';
   document.querySelectorAll('[data-language-choice]').forEach(item=>item.classList.toggle('active',item.dataset.languageChoice===lang));
   const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
-  let node;while(node=walker.nextNode()){const raw=node.nodeValue,trimmed=raw.trim();let translated=map[trimmed];if(!translated&&lang==='en'){translated=trimmed.replace(/^槽位 (\d+)$/,'Slot $1').replace(/^示例照片 (\d+)$/,'Sample photo $1').replace(/^(\d+) 个槽位$/,'$1 slots').replace(/^(\d+) 张图片$/,'$1 photos').replace(/^图片 (\d+)$/,'Photo $1').replace(/^默认项目 · 上下弧形$/,'Default project · Vertical curve wall').replace(/^默认项目 · 环绕弯曲$/,'Default project · Ring curve').replace(/^默认项目 · 环形绽放$/,'Default project · Bloom ring').replace(/^默认项目 · 倾斜网格墙$/,'Default project · Tilted grid wall').replace(/^默认项目 · 等距45度$/,'Default project · Isometric 45°').replace(/^默认项目 · 左右弧形$/,'Default project · Horizontal curve wall');}if(!translated&&lang==='zh'){translated=trimmed.replace(/^Slot (\d+)$/,'槽位 $1').replace(/^Sample photo (\d+)$/,'示例照片 $1').replace(/^(\d+) slots$/,'$1 个槽位').replace(/^Photo (\d+)$/,'图片 $1').replace(/^(\d+) photos$/,'$1 张图片');}if(translated&&translated!==trimmed)node.nodeValue=raw.replace(trimmed,translated);}
+  let node;while(node=walker.nextNode()){const raw=node.nodeValue,trimmed=raw.trim();let translated=map[trimmed];if(!translated&&lang==='en'){translated=trimmed.replace(/^槽位 (\d+)$/,'Slot $1').replace(/^示例照片 (\d+)$/,'Sample photo $1').replace(/^(\d+) 个槽位$/,'$1 slots').replace(/^(\d+) 张图片$/,'$1 photos').replace(/^图片 (\d+)$/,'Photo $1').replace(/^([0-9.]+) 秒$/,'$1 s').replace(/^默认项目 · 上下弧形$/,'Default project · Vertical curve wall').replace(/^默认项目 · 环绕弯曲$/,'Default project · Ring curve').replace(/^默认项目 · 环形绽放$/,'Default project · Bloom ring').replace(/^默认项目 · 倾斜网格墙$/,'Default project · Vertical curve wall').replace(/^默认项目 · 倾斜网格墙$/,'Default project · Tilted grid wall').replace(/^默认项目 · 等距45度$/,'Default project · Isometric 45°').replace(/^默认项目 · 左右弧形$/,'Default project · Horizontal curve wall');}if(!translated&&lang==='zh'){translated=trimmed.replace(/^Slot (\d+)$/,'槽位 $1').replace(/^Sample photo (\d+)$/,'示例照片 $1').replace(/^(\d+) slots$/,'$1 个槽位').replace(/^Photo (\d+)$/,'图片 $1').replace(/^(\d+) photos$/,'$1 张图片').replace(/^([0-9.]+) s$/,'$1 秒');}if(translated&&translated!==trimmed)node.nodeValue=raw.replace(trimmed,translated);}
   document.querySelectorAll('[title],[aria-label],[placeholder],[alt]').forEach(element=>{for(const attribute of ['title','aria-label','placeholder','alt']){const value=element.getAttribute(attribute);if(!value)continue;let translated=map[value];if(!translated&&lang==='en'){translated=value.replace(/^槽位 (\d+)$/,'Slot $1').replace(/^示例照片 (\d+)$/,'Sample photo $1').replace(/^删除项目：/,'Delete project: ').replace(/^重置项目：/,'Reset project: ');}if(!translated&&lang==='zh'){translated=value.replace(/^Slot (\d+)$/,'槽位 $1').replace(/^Sample photo (\d+)$/,'示例照片 $1');}if(translated&&translated!==value)element.setAttribute(attribute,translated)}});
   const author=document.querySelector('.author-copy p');if(author)author.innerHTML=lang==='en'?'A workplace PPTer learning by doing,<br>sharing useful PPT templates every day.':'一个正在摸爬滚打的职场 PPTer，<br>日常分享好用的 PPT 模板。';
   const reward=document.querySelector('.reward-note');if(reward)reward.textContent=lang==='en'?'If you find a feature useful, you can support the author~':'如果您觉得有哪些眼前一亮的功能，可以给作者打赏~';
+  if(typeof syncBloomAnimationControls==='function')syncBloomAnimationControls();if(typeof syncPhotoEditControls==='function')syncPhotoEditControls();
   try{localStorage.setItem(LANGUAGE_KEY,lang)}catch{}
 }
 document.querySelectorAll('[data-language-choice]').forEach(button=>button.addEventListener('click',()=>applyLanguage(button.dataset.languageChoice)));
@@ -2234,65 +3800,45 @@ const activeTheme=savedTheme==='light'?'light':'dark';
 if(activeTheme==='light')document.body.classList.add('light-theme');
 document.querySelectorAll('[data-theme-choice]').forEach(item=>item.classList.toggle('active',item.dataset.themeChoice===activeTheme));
 $('#projectButton').addEventListener('click',()=>{const menu=$('#projectMenu');const open=!menu.classList.contains('open');menu.classList.toggle('open',open);menu.setAttribute('aria-hidden',String(!open));if(open){renderProjectList();setTimeout(()=>applyLanguage(currentLanguage),0)}});
+$('#undoButton')?.addEventListener('click',undoHistory);
+$('#redoButton')?.addEventListener('click',redoHistory);
+syncHistoryControls();
 $('#closeProjectMenu').addEventListener('click',closeProjectMenu);
 $('#createProjectButton').addEventListener('click',()=>{const input=$('#projectNameInput');createProject(input.value);input.value=''});
 $('#projectNameInput').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();$('#createProjectButton').click()}});
 $('#projectList').addEventListener('click',event=>{const reset=event.target.closest('[data-project-reset]');if(reset){event.stopPropagation();resetProject(reset.dataset.projectReset);return}const remove=event.target.closest('[data-project-delete]');if(remove){event.stopPropagation();deleteProject(remove.dataset.projectDelete);return}const name=event.target.closest('[data-project-name]');if(name){event.stopPropagation();beginProjectRename(name.dataset.projectName);return}const row=event.target.closest('[data-project-id]');if(row)switchProject(row.dataset.projectId)});
 $('#projectList').addEventListener('keydown',event=>{if(event.key!=='Enter'&&event.key!==' ')return;const row=event.target.closest('[data-project-id]');if(!row||event.target.closest('[data-project-delete]')||event.target.closest('[data-project-reset]'))return;event.preventDefault();switchProject(row.dataset.projectId)});
-document.addEventListener('pointerdown',event=>{if(!event.target.closest('#projectMenu')&&!event.target.closest('#projectButton'))closeProjectMenu();if(!event.target.closest('#settingsControl')&&!event.target.closest('#brandSettingsTrigger'))closeSettingsMenu();if(!event.target.closest('#previewQualityControl'))closePreviewQualityMenu();if(!event.target.closest('#exportControl')&&!event.target.closest('.export-confirm-backdrop'))closeExportDialog();if(!event.target.closest('#resolutionPresetControl'))closeResolutionPresetMenu()});
+document.addEventListener('pointerdown',event=>{if(!event.target.closest('#projectMenu')&&!event.target.closest('#projectButton'))closeProjectMenu();if(!event.target.closest('#settingsControl')&&!event.target.closest('#brandSettingsTrigger'))closeSettingsMenu();if(!event.target.closest('#previewQualityControl'))closePreviewQualityMenu();if(!event.target.closest('#exportControl')&&!event.target.closest('.export-confirm-backdrop'))closeExportDialog();if(!event.target.closest('#resolutionPresetControl'))closeResolutionPresetMenu();if(!event.target.closest('.timeline-duration-select'))closeTimelineDurationMenu()});
 async function exportImage(format='png',resolutionPreset=state.resolutionPreset||DEFAULT_RESOLUTION_PRESET){
-  const button=$('#exportButton'),label=button.querySelector('.export-label');button.disabled=true;button.classList.add('exporting');if(label)label.textContent='导出中';
-  const oldAspect=camera.aspect,oldBackground=scene.background;
-  const oldOrtho=isOrthographicCamera?{left:camera.left,right:camera.right,top:camera.top,bottom:camera.bottom}:null;
+  const button=$('#exportButton'),label=button.querySelector('.export-label');button.disabled=true;button.classList.add('exporting');if(label)label.textContent=uiText('导出中','Exporting');
+  const oldBackground=scene.background;
+  // Snapshot the exact editor view before original images are loaded. Texture
+  // restoration can be asynchronous, while the preview may resize meanwhile.
+  const exportCamera=camera.clone();
   const isJpeg=format==='jpeg',extension=isJpeg?'jpg':'png',mime=isJpeg?'image/jpeg':'image/png';
-  const targetDimensions=dimensionsForAspectRatio(`${state.ratioWidth}:${state.ratioHeight}`,RESOLUTION_PRESETS[resolutionPreset]||RESOLUTION_PRESETS[DEFAULT_RESOLUTION_PRESET]);
+  const targetDimensions=dimensionsForAspectRatio(`${state.width}:${state.height}`,RESOLUTION_PRESETS[resolutionPreset]||RESOLUTION_PRESETS[DEFAULT_RESOLUTION_PRESET]);
   const targetWidth=targetDimensions.width,targetHeight=targetDimensions.height;
   try{
     // The editor can use a lighter preview texture, while export temporarily
     // restores each original image so both formats keep the source resolution.
     await switchToFullResolutionTextures();
-    if(!exportRenderer){exportRenderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});exportRenderer.setPixelRatio(1);exportRenderer.setClearColor(0x000000,0);exportRenderer.outputColorSpace=THREE.SRGBColorSpace;exportRenderer.toneMapping=THREE.NoToneMapping;exportRenderer.toneMappingExposure=1}
-    // Render larger than the requested output, then downsample with a high
-    // quality 2D pass. This keeps the downloaded file at the selected 4K
-    // dimensions while improving diagonal edges and rounded corners. Cap the
-    // multiplier by the GPU renderbuffer limit so very large custom sizes do
-    // not fail on lower-end devices.
-    const maxRenderSize=Math.max(1,exportRenderer.capabilities.maxRenderbufferSize||8192);
-    const exportScale=Math.max(1,Math.min(2,maxRenderSize/Math.max(targetWidth,targetHeight)));
-    const renderWidth=Math.max(1,Math.round(targetWidth*exportScale));
-    const renderHeight=Math.max(1,Math.round(targetHeight*exportScale));
-    exportRenderer.setSize(renderWidth,renderHeight,false);
-    camera.aspect=targetWidth/targetHeight;
-    if(isOrthographicCamera){const halfHeight=Math.max(.1,cameraHalfSpan*100/Math.max(1,state.zoom)),aspect=targetWidth/Math.max(1,targetHeight);camera.left=-halfHeight*aspect;camera.right=halfHeight*aspect;camera.top=halfHeight;camera.bottom=-halfHeight}
-    camera.updateProjectionMatrix();
-    if(backgroundTexture){
-      exportRenderer.setClearColor(0x000000,1);exportRenderer.setClearAlpha?.(1);scene.background=oldBackground;
-    }else if(isJpeg){
-      // JPEG has no alpha channel, so retain the current canvas background.
-      exportRenderer.setClearColor(new THREE.Color(backgroundColor),1);exportRenderer.setClearAlpha?.(1);scene.background=oldBackground||new THREE.Color(backgroundColor);
-    }else{
-      exportRenderer.setClearColor(0x000000,0);exportRenderer.setClearAlpha?.(0);scene.background=null;exportRenderer.clear(true,true,true);
-    }
-    exportRenderer.render(scene,camera);
-    let exportCanvas=exportRenderer.domElement;
-    if(renderWidth!==state.width||renderHeight!==state.height){
-      const outputCanvas=document.createElement('canvas');outputCanvas.width=targetWidth;outputCanvas.height=targetHeight;
-      const context=outputCanvas.getContext('2d');context.imageSmoothingEnabled=true;context.imageSmoothingQuality='high';
-      context.drawImage(exportRenderer.domElement,0,0,targetWidth,targetHeight);exportCanvas=outputCanvas;
-    }
-    const blob=await new Promise((resolve,reject)=>exportCanvas.toBlob(value=>value?resolve(value):reject(new Error('图片生成失败')),mime,isJpeg?0.92:undefined));
-    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`photo-wall-${targetWidth}x${targetHeight}.${extension}`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1500);notify(`已导出 ${targetWidth} × ${targetHeight} ${isJpeg?'JPEG':'PNG'}`);
-  }catch{notify('导出失败，请重试')}
+    if(!exportRenderer){exportRenderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});exportRenderer.setPixelRatio(1);exportRenderer.outputColorSpace=THREE.SRGBColorSpace;exportRenderer.toneMapping=THREE.NoToneMapping;exportRenderer.toneMappingExposure=1}
+    // Render the same scene and camera projection at the selected output size.
+    // Avoid an extra 2x framebuffer, which can exceed GPU memory at 4K.
+    exportRenderer.setSize(targetWidth,targetHeight,false);
+    // Keep PNG transparent unless the user supplied an actual background image.
+    // JPEG retains the canvas background because that format has no alpha.
+    if(!isJpeg&&!backgroundTexture){scene.background=null;exportRenderer.setClearColor(0x000000,0)}
+    else{exportRenderer.setClearColor(0x000000,1)}
+    exportRenderer.render(scene,exportCamera);
+    scene.background=oldBackground;
+    const blob=await new Promise((resolve,reject)=>exportRenderer.domElement.toBlob(value=>value?resolve(value):reject(new Error('图片生成失败')),mime,isJpeg?0.92:undefined));
+    const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`photo-wall-${targetWidth}x${targetHeight}.${extension}`;link.click();setTimeout(()=>URL.revokeObjectURL(url),1500);notify(uiText(`已导出 ${targetWidth} × ${targetHeight} ${isJpeg?'JPEG':'PNG'}`,`Exported ${targetWidth} × ${targetHeight} ${isJpeg?'JPEG':'PNG'}`));
+  }catch(error){console.error('导出失败',error);notify(uiText('导出失败，请重试','Export failed. Please try again'))}
   finally{
-    scene.background=oldBackground;camera.aspect=oldAspect;if(isOrthographicCamera&&oldOrtho){camera.left=oldOrtho.left;camera.right=oldOrtho.right;camera.top=oldOrtho.top;camera.bottom=oldOrtho.bottom}camera.updateProjectionMatrix();
-    await restorePreviewTextures().catch(()=>{});render();button.disabled=false;button.classList.remove('exporting');if(label)label.textContent='导出';
+    scene.background=oldBackground;
+    await restorePreviewTextures().catch(()=>{});render();button.disabled=false;button.classList.remove('exporting');if(label)label.textContent=uiText('导出','Export');
   }
 }
 
 updateDimensionUI();updateSlots();updateModeUI();resize();new ResizeObserver(resize).observe(host);window.addEventListener('resize',resize);
-
-
-
-
-
-

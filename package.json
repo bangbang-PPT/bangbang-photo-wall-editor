@@ -6,14 +6,16 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "deploy:pages": "pnpm build && pnpm dlx wrangler pages deploy ./dist --project-name photo-wall-editor"
+    "deploy:pages": "pnpm build && pnpm dlx wrangler pages deploy ./dist --project-name photo-wall-editor --branch main"
   },
   "keywords": [],
   "author": "",
   "license": "MIT",
   "type": "module",
   "dependencies": {
-    "three": "^0.186.0"
+    "mediabunny": "1.61.4",
+    "three": "^0.186.0",
+    "webm-writer": "^1.0.0"
   },
   "devDependencies": {
     "vite": "^8.3.0"
