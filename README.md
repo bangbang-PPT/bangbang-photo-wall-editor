@@ -2,7 +2,7 @@
 
 一个在浏览器里完成照片墙排版、视角调整、动画预览和视频导出的 3D 编辑器。拖入图片即可开始，布局、参数、项目和图片都保存在当前浏览器中。
 
-[在线体验](https://photo-wall-editor.pages.dev) · [GitHub 仓库](https://github.com/bangbang-PPT/photo-wall-editor)
+[在线体验](https://photo-wall-editor.pages.dev) · [作者主页](https://workbench-sync.top/) · [GitHub 仓库](https://github.com/bangbang-PPT/photo-wall-editor)
 
 **在线地址：** <https://photo-wall-editor.pages.dev/>
 
