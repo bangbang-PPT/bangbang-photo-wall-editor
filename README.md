@@ -4,7 +4,7 @@
 
 [在线体验](https://photo-wall-editor.pages.dev) · [作者主页](https://workbench-sync.top/) · [GitHub 仓库](https://github.com/bangbang-PPT/bangbang-photo-wall-editor)
 
-![图片墙工作室动态预览](docs/media/photo-wall-editor-preview.gif)
+[![图片墙工作室展示图](docs/media/photo-wall-editor-poster.jpg)](https://photo-wall-editor.pages.dev/showcase/)
 
 ## 先看懂界面
 
