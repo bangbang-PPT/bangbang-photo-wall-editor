@@ -4,9 +4,9 @@
 
 [在线体验](https://photo-wall-editor.pages.dev) · [作者主页](https://workbench-sync.top/) · [GitHub 仓库](https://github.com/bangbang-PPT/bangbang-photo-wall-editor)
 
-<video src="https://raw.githubusercontent.com/bangbang-PPT/bangbang-photo-wall-editor/main/docs/media/photo-wall-editor.webm" controls loop playsinline preload="metadata" width="100%"></video>
+[![播放图片墙展示视频](docs/media/photo-wall-editor-poster.jpg)](https://photo-wall-editor.pages.dev/showcase/)
 
-<sub>展示视频：从布局选择、画布预览到参数调整和动画时间轴的完整流程。</sub>
+<sub>点击封面即可在浏览器中直接播放展示视频。</sub>
 
 ![图片墙工作室总览](docs/screenshots/overview-workspace.png)
 
