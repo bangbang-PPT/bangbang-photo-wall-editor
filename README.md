@@ -25,7 +25,7 @@
     <td colspan="2" valign="top"><p align="center"><img src="docs/screenshots/timeline-animation-strip.png" alt="底部动画时间轴" width="100%"></p><strong>动画时间轴</strong><br>出现动画、循环动画、关键帧和播放控制集中在底部，时间轴时长直接决定导出时长。</td>
   </tr>
   <tr>
-    <td colspan="2" valign="top"><p align="center"><img src="docs/screenshots/export-panel.png" alt="导出面板" height="320"></p><strong>导出</strong><br>支持 PNG、JPEG、WebM 和 MP4，可选择 2K、4K 或 8K 输出尺寸。</td>
+    <td colspan="2" valign="top"><p align="center"><img src="docs/screenshots/export-panel-focus.png" alt="导出面板" width="520"></p><strong>导出</strong><br>支持 PNG、JPEG、WebM 和 MP4，可选择 2K、4K 或 8K 输出尺寸。</td>
   </tr>
 </table>
 
