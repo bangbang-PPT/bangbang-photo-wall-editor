@@ -1,6 +1,29 @@
-import * as THREE from 'three';
-import WebMWriter from 'webm-writer';
-import { BufferTarget, CanvasSource, Mp4OutputFormat, Output, Quality, WebMOutputFormat, canEncodeVideo } from 'mediabunny';
+import {
+  BackSide,
+  CanvasTexture,
+  Color,
+  FrontSide,
+  Group,
+  LinearFilter,
+  MathUtils,
+  Matrix4,
+  Mesh,
+  MeshBasicMaterial,
+  NoToneMapping,
+  OrthographicCamera,
+  PerspectiveCamera,
+  PlaneGeometry,
+  Quaternion,
+  Raycaster,
+  SRGBColorSpace,
+  Scene,
+  Texture,
+  TextureLoader,
+  Vector2,
+  Vector3,
+  WebGLRenderer,
+} from 'three';
+const THREE={BackSide,CanvasTexture,Color,FrontSide,Group,LinearFilter,MathUtils,Matrix4,Mesh,MeshBasicMaterial,NoToneMapping,OrthographicCamera,PerspectiveCamera,PlaneGeometry,Quaternion,Raycaster,SRGBColorSpace,Scene,Texture,TextureLoader,Vector2,Vector3,WebGLRenderer};
 import { ringCardPose, bloomCardPose, curvedCardPose, gridCardPose, CARD_WIDTH, CARD_HEIGHT, DESIGN_SCALE } from './ring-layout.js';
 import './style.css';
 import { freeGridLayout, regularGridLayout, nextGridSeed } from './free-grid-layout.js';
@@ -42,6 +65,15 @@ const ratios = [
 const RESOLUTION_PRESETS={'1K':1024,'2K':1920,'4K':3840,'8K':7680};
 const DEFAULT_RESOLUTION_PRESET='2K';
 const BLOOM_VIDEO_RESOLUTIONS={'720p':1280,'1080p':1920,'2K':2560,'4K':3840,'8K':7680};
+let mediabunnyModulePromise;
+let webmWriterModulePromise;
+function loadMediabunny(){
+  return mediabunnyModulePromise??=import('mediabunny');
+}
+async function loadWebMWriter(){
+  const module=await (webmWriterModulePromise??=import('webm-writer'));
+  return module.default??module;
+}
 function bloomVideoBitrate(quality,width,height,fps){
   // High-resolution exports need more bits to preserve fine photo details.
   // Keep the smaller presets on the existing compact range while giving 4K
@@ -1365,6 +1397,7 @@ async function exportBloomAnimationOffline(format='webm'){
   const frameCount=Math.max(1,Math.ceil(duration*fps));
   let output=null,fullResolutionTextures=false;
   try{
+    const {BufferTarget,CanvasSource,Mp4OutputFormat,Output,Quality,WebMOutputFormat,canEncodeVideo}=await loadMediabunny();
     // Show feedback before codec probing and the high-resolution renderer are
     // prepared. With many uploaded images those steps can take several
     // seconds, and failures there previously looked like a dead export button.
@@ -1442,6 +1475,8 @@ async function exportBloomAnimationOffline(format='webm'){
   return true;
 }
 async function exportBloomAnimationWebMWriterFallback(){
+  let WebMWriter;
+  try{WebMWriter=await loadWebMWriter()}catch{return false}
   if(typeof WebMWriter!=='function')return false;
   const fps=THREE.MathUtils.clamp(Math.round(Number(bloomAnimation.fps)||30),15,60);
   const loopDuration=selectedAnimationDuration();
