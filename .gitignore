@@ -4,3 +4,12 @@ dist/
 tmp/
 preview-server.log
 preview-server-error.log
+
+# Local-only deployment and handoff notes (never publish)
+/DEPLOYMENT.md
+/HANDOFF.md
+/部署情况与后续更新计划.md
+/AGENTS.md
+/.wrangler/
+/.env
+/.env.*
