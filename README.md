@@ -6,6 +6,29 @@
 
 [![图片墙工作室展示图](docs/media/photo-wall-editor-poster.jpg)](https://photo-wall-editor.pages.dev/showcase/)
 
+## 作品展示
+
+来自图片墙预设的不同构图效果。
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/showcase/portfolio-01.jpg" alt="作品展示 1" width="100%"></td>
+    <td width="50%"><img src="docs/showcase/portfolio-02.jpg" alt="作品展示 2" width="100%"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/showcase/portfolio-03.jpg" alt="作品展示 3" width="100%"></td>
+    <td width="50%"><img src="docs/showcase/portfolio-04.jpg" alt="作品展示 4" width="100%"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/showcase/portfolio-05.jpg" alt="作品展示 5" width="100%"></td>
+    <td width="50%"><img src="docs/showcase/portfolio-06.jpg" alt="作品展示 6" width="100%"></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/showcase/portfolio-07.jpg" alt="作品展示 7" width="100%"></td>
+    <td width="50%"><img src="docs/showcase/portfolio-08.jpg" alt="作品展示 8" width="100%"></td>
+  </tr>
+</table>
+
 ## 先看懂界面
 
 编辑器按“选择图片墙预设 → 调整设置 → 编辑图片 → 制作动画 → 导出”的顺序组织。左侧选择预设，中间观察效果，右侧调整设置和图片，底部控制时间轴。
