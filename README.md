@@ -2,13 +2,13 @@
 
 一个在浏览器里完成照片墙排版、视角调整、动画预览和视频导出的 3D 编辑器。拖入图片即可开始，布局、参数、项目和图片都保存在当前浏览器中。
 
-[在线体验](https://photo-wall-editor.pages.dev) · [作者主页](https://workbench-sync.top/) · [GitHub 仓库](https://github.com/bangbang-PPT/photo-wall-editor)
+[在线体验](https://photo-wall-editor.pages.dev) · [作者主页](https://workbench-sync.top/) · [GitHub 仓库](https://github.com/bangbang-PPT/bangbang-photo-wall-editor)
 
 **在线地址：** <https://photo-wall-editor.pages.dev/>
 
-[![播放图片墙展示视频](docs/media/photo-wall-editor-poster.jpg)](https://raw.githubusercontent.com/bangbang-PPT/photo-wall-editor/main/docs/media/photo-wall-editor.webm)
+[![播放图片墙展示视频](docs/media/photo-wall-editor-poster.jpg)](https://raw.githubusercontent.com/bangbang-PPT/bangbang-photo-wall-editor/main/docs/media/photo-wall-editor.webm)
 
-<sub>展示视频：从布局选择、画布预览到参数调整和动画时间轴的完整流程。若 GitHub 未直接显示播放器，可打开 <a href="https://raw.githubusercontent.com/bangbang-PPT/photo-wall-editor/main/docs/media/photo-wall-editor.webm">WebM 视频文件</a>。</sub>
+<sub>展示视频：从布局选择、画布预览到参数调整和动画时间轴的完整流程。若 GitHub 未直接显示播放器，可打开 <a href="https://raw.githubusercontent.com/bangbang-PPT/bangbang-photo-wall-editor/main/docs/media/photo-wall-editor.webm">WebM 视频文件</a>。</sub>
 
 ![图片墙工作室总览](docs/screenshots/overview-workspace.png)
 
