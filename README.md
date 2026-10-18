@@ -8,12 +8,12 @@
 
 ## 先看懂界面
 
-编辑器按“选择布局 → 调整画布 → 编辑图片 → 制作动画 → 导出”的顺序组织。左侧负责构图，中间负责观察，右侧负责参数和图片，底部负责时间轴。
+编辑器按“选择图片墙预设 → 调整设置 → 编辑图片 → 制作动画 → 导出”的顺序组织。左侧选择预设，中间观察效果，右侧调整设置和图片，底部控制时间轴。
 
 <table>
   <tr>
-    <td width="50%" valign="top"><p align="center"><img src="docs/screenshots/layout-presets.png" alt="左侧布局预设" height="320"></p><strong>布局预设</strong><br>环绕、弧形、网格、展廊等布局一键切换，适合快速探索构图。</td>
-    <td width="50%" valign="top"><p align="center"><img src="docs/screenshots/inspector-slots.png" alt="右侧画布和图片槽位" height="320"></p><strong>画布与图片槽位</strong><br>选择画幅、设置背景、增减槽位、拖动排序，图片始终留在当前浏览器。</td>
+    <td width="50%" valign="top"><p align="center"><img src="docs/screenshots/layout-presets.png" alt="图片墙预设" height="320"></p><strong>图片墙预设</strong><br>环绕、弧形、网格、展廊等预设一键切换，快速确定照片墙构图。</td>
+    <td width="50%" valign="top"><p align="center"><img src="docs/screenshots/inspector-slots.png" alt="设置面板" height="320"></p><strong>设置面板</strong><br>集中设置画幅、背景、槽位数量和图片顺序，内容始终保存在当前浏览器。</td>
   </tr>
   <tr>
     <td width="50%" valign="top"><p align="center"><img src="docs/screenshots/inspector-settings.png" alt="右侧参数面板" height="320"></p><strong>参数面板</strong><br>尺寸、间距、圆角、旋转、透视、视口缩放和相机偏移都可以单独调节。</td>
@@ -31,9 +31,9 @@
 
 | 区域 | 适合做什么 |
 | --- | --- |
-| 左侧布局 | 在 3D 环绕、弧形墙、四面展廊和网格墙之间切换，快速找到照片墙结构。 |
+| 左侧图片墙预设 | 在 3D 环绕、弧形墙、四面展廊和网格墙之间切换，快速确定照片墙结构。 |
 | 中央画布 | 左键拖动观察、Alt + 左键平移、滚轮缩放、双击选中图片，实时查看最终构图。 |
-| 右侧检查器 | 设置画幅和背景，管理图片槽位，编辑单图裁切，并调节布局与相机参数。 |
+| 右侧设置面板 | 设置画幅和背景，管理图片槽位，编辑单图裁切，并调节布局与相机参数。 |
 | 底部时间轴 | 选择出现方式、循环方式和时长，添加或拖动关键帧，播放检查动画节奏。 |
 | 导出面板 | 选择图片或视频格式与输出尺寸，导出当前时间轴范围的高清结果。 |
 
