@@ -12,16 +12,16 @@
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshots/layout-presets.png" alt="左侧布局预设"><br><strong>布局预设</strong><br>环绕、弧形、网格、展廊等布局一键切换，适合快速探索构图。</td>
-    <td width="50%"><img src="docs/screenshots/inspector-slots.png" alt="右侧画布和图片槽位"><br><strong>画布与图片槽位</strong><br>选择画幅、设置背景、增减槽位、拖动排序，图片始终留在当前浏览器。</td>
+    <td width="50%" valign="top"><p align="center"><img src="docs/screenshots/layout-presets.png" alt="左侧布局预设" height="320"></p><strong>布局预设</strong><br>环绕、弧形、网格、展廊等布局一键切换，适合快速探索构图。</td>
+    <td width="50%" valign="top"><p align="center"><img src="docs/screenshots/inspector-slots.png" alt="右侧画布和图片槽位" height="320"></p><strong>画布与图片槽位</strong><br>选择画幅、设置背景、增减槽位、拖动排序，图片始终留在当前浏览器。</td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/inspector-settings.png" alt="右侧参数面板"><br><strong>参数面板</strong><br>尺寸、间距、圆角、旋转、透视、视口缩放和相机偏移都可以单独调节。</td>
-    <td><img src="docs/screenshots/timeline-animation.png" alt="底部动画时间轴"><br><strong>动画时间轴</strong><br>出现动画、循环动画、关键帧和播放控制集中在底部，时间轴时长直接决定导出时长。</td>
+    <td width="50%" valign="top"><p align="center"><img src="docs/screenshots/inspector-settings.png" alt="右侧参数面板" height="320"></p><strong>参数面板</strong><br>尺寸、间距、圆角、旋转、透视、视口缩放和相机偏移都可以单独调节。</td>
+    <td width="50%" valign="top"><p align="center"><img src="docs/screenshots/timeline-animation.png" alt="底部动画时间轴" height="320"></p><strong>动画时间轴</strong><br>出现动画、循环动画、关键帧和播放控制集中在底部，时间轴时长直接决定导出时长。</td>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/image-editor.png" alt="图片调整弹窗"><br><strong>图片调整</strong><br>在独立画布中拖动、缩放和定位单张图片，边界锚点会实时显示画布范围。</td>
-    <td><img src="docs/screenshots/export-panel.png" alt="导出面板"><br><strong>导出</strong><br>支持 PNG、JPEG、WebM 和 MP4，可选择 2K、4K 或 8K 输出尺寸。</td>
+    <td width="50%" valign="top"><p align="center"><img src="docs/screenshots/image-editor.png" alt="图片调整弹窗" height="320"></p><strong>图片调整</strong><br>在独立画布中拖动、缩放和定位单张图片，边界锚点会实时显示画布范围。</td>
+    <td width="50%" valign="top"><p align="center"><img src="docs/screenshots/export-panel.png" alt="导出面板" height="320"></p><strong>导出</strong><br>支持 PNG、JPEG、WebM 和 MP4，可选择 2K、4K 或 8K 输出尺寸。</td>
   </tr>
 </table>
 
